@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.ai_processing import router as ai_processing_router
 from app.api.resume import router as resume_router
 from app.api.student_ai import router as student_ai_router
+from app.api.institution import router as institution_router
+from app.api.industry import router as industry_router
 from app.config import get_settings
 
 app = FastAPI(
@@ -18,14 +20,7 @@ settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-],
+    allow_origins=settings.FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,6 +29,8 @@ app.add_middleware(
 app.include_router(student_ai_router)
 app.include_router(resume_router)
 app.include_router(ai_processing_router)
+app.include_router(institution_router)
+app.include_router(industry_router)
 
 
 @app.get("/health")
