@@ -196,3 +196,61 @@ Supabase grants base table access to `authenticated`/`anon` roles automatically 
 - `level`/`demand_score`/`internship_suitability`/`description` values for the 205 seeded roles
 
 None of these block a working demo — the current schema already covers the full PS26044 core loop end-to-end.
+
+
+
+# SIH26044 — Addendum: Resume Intelligence + Grants Update
+*(Read alongside `sih26044_FINAL_database_reference.md` — this covers only what's new since that doc.)*
+
+---
+
+## 1. New table: `resume_processing_jobs`
+
+Tracks an async pipeline: student uploads a resume → an AI service parses it → extracted skills eventually feed into `student_skills`.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| resume_id | uuid | ⚠️ not null, but no FK target exists yet — see note below |
+| student_id | uuid FK → profiles | |
+| status | text | pending / processing / completed / completed_with_errors / failed |
+| error_message | text | |
+| provider | text | e.g. "anthropic", "openai" |
+| model | text | e.g. "claude-sonnet-5" |
+| storage_path | text | path in the `student-documents` bucket |
+| file_name, file_type, file_size | text/bigint | |
+| extracted_text | text | raw text pulled from the resume |
+| started_at, completed_at | timestamptz | |
+| created_at, updated_at | timestamptz | |
+
+**RLS:** students can `select` their own rows (`student_id = auth.uid()`). Only `service_role` can insert/update — meaning **the frontend cannot create or update job rows directly**. Job creation and status updates must go through your backend (an Edge Function or server route using the service role key).
+
+⚠️ **`resume_id` has no companion table.** Either:
+- it's meant to be a client-generated idempotency key (fine as-is, just document it as such), or
+- you intended a separate `resumes` table (one resume can have multiple processing attempts) and haven't created it yet.
+
+Worth confirming with whoever built this before the frontend starts relying on it.
+
+## 2. Recommended flow (frontend + backend)
+
+1. **Frontend:** student uploads file to Storage bucket `student-documents/{student_id}/resume.pdf`.
+2. **Frontend:** calls your backend (not Supabase directly) to kick off processing — e.g. an Edge Function `POST /process-resume` with the storage path.
+3. **Backend (service role):** inserts a row into `resume_processing_jobs` with `status = 'pending'`, then updates it to `processing` → `completed`/`failed` as the AI call runs, filling in `extracted_text`, `provider`, `model`.
+4. **Backend (service role):** on success, writes parsed skills into `student_skills` (with `source = 'ai_estimated'`) and updates `students.resume_url`.
+5. **Frontend:** polls `resume_processing_jobs` (or subscribes via Supabase Realtime) filtered to the student's own `student_id`, watching `status` to show a progress indicator.
+
+## 3. Grants — what changed
+
+Your team added explicit `GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated` and `GRANT ALL ... TO service_role`, plus `ALTER DEFAULT PRIVILEGES` so **future tables inherit this automatically**.
+
+**Why this is still safe:** every table has RLS enabled with specific policies (or none, which means deny-by-default). A blanket table-level `GRANT SELECT` only gets you as far as "Postgres will evaluate row-level policies for you" — it does not bypass them. So a student still can't read another student's `academic_records`, for example, because that table's RLS policy already restricts by `auth.uid()`.
+
+**Practical effect for your frontend team:** you no longer need to worry about "permission denied" errors from missing table grants — if a query fails now, it's an RLS row-policy issue, not a grants issue. Simplifies debugging.
+
+## 4. `student_skills.updated_at`
+
+Added, but had no trigger — the `sih26044_backfill_students.sql` file (just given) adds the missing `trg_student_skills_updated_at` trigger so this column actually updates automatically going forward, consistent with every other table.
+
+## 5. Trigger fix — read this before your team touches `handle_new_user()` again
+
+Two bugs were introduced in the latest version of this function (see main chat response): role was hardcoded to `'student'` instead of reading signup metadata, and `full_name` was dropped from the insert despite being a `NOT NULL` column. `sih26044_fix_handle_new_user.sql` restores both. Apply it before more users sign up, or every institution/company account created in the meantime will be miscategorized as a student.
