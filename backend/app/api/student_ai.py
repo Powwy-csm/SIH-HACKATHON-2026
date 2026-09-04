@@ -5,17 +5,32 @@ from fastapi import APIRouter, Depends
 from app.deps.auth import CurrentStudent, get_current_student
 from app.deps.supabase_clients import get_service_client
 from app.schemas.student_ai import (
+    ApplicationListResponse,
+    ApplyRequest,
+    ApplyResponse,
     DashboardResponse,
     OpportunityMatchRequest,
     OpportunityMatchResponse,
     ProfileAnalysisResponse,
+    ProfileUpdateRequest,
+    ProfileUpdateResponse,
     SimulateImprovementRequest,
     SimulateImprovementResponse,
+    SkillDeleteResponse,
     SkillGapRequest,
     SkillGapResponse,
+    SkillItem,
+    SkillListResponse,
+    SkillUpsertRequest,
 )
-from app.services import dashboard_service, opportunity_service, profile_service, simulation_service
-from app.services import skill_gap_service
+from app.services import (
+    application_service,
+    dashboard_service,
+    opportunity_service,
+    profile_service,
+    simulation_service,
+    skill_gap_service,
+)
 
 router = APIRouter(prefix="/api/student-ai", tags=["student-ai"])
 
@@ -81,3 +96,102 @@ async def simulate_improvement(
         skill_improvements=[s.model_dump() for s in body.skill_improvements],
     )
     return SimulateImprovementResponse(**data)
+
+
+# F. Applications (student side)
+@router.post("/applications", response_model=ApplyResponse, status_code=201)
+async def apply_to_posting(
+    body: ApplyRequest,
+    current: CurrentStudent = Depends(get_current_student),
+):
+    data = application_service.apply_to_posting(
+        current.client,
+        current.student_id,
+        body.posting_id,
+    )
+    return ApplyResponse(**data)
+
+
+@router.get("/applications", response_model=ApplicationListResponse)
+async def my_applications(
+    current: CurrentStudent = Depends(get_current_student),
+):
+    items = application_service.list_my_applications(
+        current.client,
+        current.student_id,
+    )
+    return ApplicationListResponse(applications=items)
+
+
+# G. Profile edit + skills CRUD
+@router.patch("/profile", response_model=ProfileUpdateResponse)
+async def update_profile(
+    body: ProfileUpdateRequest,
+    current: CurrentStudent = Depends(get_current_student),
+):
+    data = profile_service.update_profile(
+        current.client,
+        current.student_id,
+        body.model_dump(),
+    )
+    return ProfileUpdateResponse(**data)
+
+
+@router.get("/skills", response_model=SkillListResponse)
+async def list_skills(
+    current: CurrentStudent = Depends(get_current_student),
+):
+    rows = profile_service.list_skills(
+        current.client,
+        current.student_id,
+    )
+    return SkillListResponse(
+        skills=[SkillItem(**r) for r in rows]
+    )
+
+
+@router.put("/skills", response_model=SkillItem, status_code=201)
+async def upsert_skill(
+    body: SkillUpsertRequest,
+    current: CurrentStudent = Depends(get_current_student),
+):
+    row = profile_service.upsert_skill(
+        current.client,
+        current.student_id,
+        body.skill_id,
+        body.proficiency,
+        body.proficiency_score,
+    )
+
+    enriched = next(
+        (
+            r
+            for r in profile_service.list_skills(
+                current.client,
+                current.student_id,
+            )
+            if r["skill_id"] == body.skill_id
+        ),
+        None,
+    )
+
+    return SkillItem(**(enriched or row))
+
+
+@router.delete(
+    "/skills/{skill_id}",
+    response_model=SkillDeleteResponse,
+)
+async def delete_skill(
+    skill_id: str,
+    current: CurrentStudent = Depends(get_current_student),
+):
+    profile_service.delete_skill(
+        current.client,
+        current.student_id,
+        skill_id,
+    )
+    return SkillDeleteResponse(
+        skill_id=skill_id,
+        deleted=True,
+    )
