@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | BridgeX</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <div class="login-container">
+        
+        <!-- Left Side: Branding/Visual -->
+        <div class="login-visual">
+            <div class="brand-logo">
+                <i class="ph-fill ph-buildings"></i>
+                <span>BridgeX</span>
+            </div>
+            <div class="visual-content">
+                <h2>Bridging the gap between academia and industry.</h2>
+                <p>A unified platform for skill mapping, internships, and placements.</p>
+                
+                <div class="feature-pills">
+                    <span><i class="ph ph-check-circle"></i> AI Skill Mapping</span>
+                    <span><i class="ph ph-check-circle"></i> Verified Portfolios</span>
+                    <span><i class="ph ph-check-circle"></i> Live Collaborations</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="login-form-wrapper">
+            <div class="form-container">
+                <div class="mobile-brand">
+                    <i class="ph-fill ph-buildings"></i>
+                    <span>BridgeX</span>
+                </div>
+                
+                <div class="form-header">
+                    <h1>Welcome back</h1>
+                    <p>Please enter your details to sign in.</p>
+                </div>
+
+                <!-- Hackathon Demo Helper Box -->
+                <div class="demo-helper">
+                    <p class="demo-title"><i class="ph-fill ph-info"></i> Hackathon Demo Accounts</p>
+                    <p class="demo-subtitle">Click a role to auto-fill the login details:</p>
+                    <div class="demo-buttons">
+                        <button type="button" class="demo-btn" onclick="fillDemo('student')">Student</button>
+                        <button type="button" class="demo-btn" onclick="fillDemo('academician')">Academician</button>
+                        <button type="button" class="demo-btn" onclick="fillDemo('industry')">Industry</button>
+                    </div>
+                </div>
+
+                <!-- Actual Form -->
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="email">Email address</label>
+                        <div class="input-wrapper">
+                            <i class="ph ph-envelope-simple"></i>
+                            <input type="email" id="email" placeholder="name@example.com" required>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <div class="input-wrapper">
+                            <i class="ph ph-lock-key"></i>
+                            <input type="password" id="password" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="remember-me">
+                            <input type="checkbox">
+                            <span>Remember me</span>
+                        </label>
+                        <a href="#" class="forgot-password">Forgot password?</a>
+                    </div>
+
+                    <!-- Error Message Container -->
+                    <div id="errorMessage" class="error-message" style="display: none;">
+                        <i class="ph-fill ph-warning-circle"></i>
+                        <span>Invalid credentials. Try a demo account above.</span>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Sign In</button>
+                </form>
+
+                <p class="signup-prompt">
+                    Don't have an account? <a href="#">Request access</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>

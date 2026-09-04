@@ -1,0 +1,21 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+supabase>=2.10
+pydantic>=2.7
+python-multipart>=0.0.9
+
+# Phase 1: resume text extraction
+pypdf>=4.2
+python-docx>=1.1
+
+# OCR fallback for scanned/image-based PDF pages
+PyMuPDF>=1.24
+Pillow>=10.0
+pytesseract>=0.3.13
+
+# Phase 2: AI skill extraction + normalization
+rapidfuzz>=3.9
+
+# dev/test only
+pytest>=8.0
+httpx>=0.27

@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academician & Institution Portal | BridgeX</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar (Royal Blue with High-Contrast Typography) -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph-fill ph-buildings"></i>
+                    <span>BridgeX</span>
+                </div>
+                <span class="role-badge">Institution & Academician</span>
+                <button class="mobile-close" id="mobileCloseBtn"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <span class="nav-label">Main Dashboard</span>
+                <a href="#" class="nav-item active" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
+                <a href="#" class="nav-item" data-target="students"><i class="ph ph-users-three"></i> Student Readiness</a>
+                <a href="#" class="nav-item" data-target="demand"><i class="ph ph-chart-polar"></i> Industry Demand & Gaps</a>
+                
+                <span class="nav-label mt-20">Opportunities & Linkages</span>
+                <a href="#" class="nav-item" data-target="opportunities"><i class="ph ph-briefcase"></i> Student Opportunities</a>
+                <a href="#" class="nav-item" data-target="faculty"><i class="ph ph-chalkboard-teacher"></i> Faculty Opportunities</a>
+                <a href="#" class="nav-item" data-target="collaborations"><i class="ph ph-handshake"></i> Industry Collaboration</a>
+                <a href="#" class="nav-item" data-target="placements"><i class="ph ph-chart-line-up"></i> Placement & Internships</a>
+                
+                <div class="nav-divider"></div>
+                
+                <span class="nav-label">Academic Dossier</span>
+                <a href="#" class="nav-item" data-target="profile"><i class="ph ph-bank"></i> Institution Profile</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-dropdown" id="sidebarUserProfile">
+                    <img src="https://ui-avatars.com/api/?name=Priya+Menon&background=EFF6FF&color=1D4ED8&bold=true" alt="Dr. Priya Menon" class="avatar">
+                    <div class="info">
+                        <span class="name">Dr. Priya Menon</span>
+                        <span class="role">Dean • Industry Linkage</span>
+                    </div>
+                    <i class="ph ph-caret-right text-muted"></i>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" id="mobileToggleBtn"><i class="ph ph-list"></i></button>
+                    <h1 class="page-title" id="topbarTitle">Dashboard</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="search-bar">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Search students, skills, gaps, or MoUs...">
+                    </div>
+                    <button class="icon-btn notification-btn" title="Notifications">
+                        <i class="ph ph-bell"></i>
+                        <span class="badge">4</span>
+                    </button>
+                    <div class="institution-dropdown" id="topbarInstitutionProfile">
+                        <div class="avatar bg-blue-light text-blue">SSN</div>
+                        <span class="profile-name">SSN College of Engineering</span>
+                        <i class="ph ph-caret-down text-muted"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- =========================================================
+                 VIEW: DASHBOARD (Clean, Spacious Executive Summary)
+                 ========================================================= -->
+            <main class="view-section active" id="view-dashboard">
+                <!-- Dashboard Welcome -->
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Good morning, Dr. Priya 👋</h2>
+                        <p class="subtitle">Monitor student readiness, identify skill gaps against industry demand, and manage academia-industry linkages.</p>
+                    </div>
+                    <button class="btn btn-primary" id="openCollabModalBtn">
+                        <i class="ph ph-plus-circle"></i> Request Collaboration
+                    </button>
+                </div>
+
+                <!-- Summary KPI Stats Grid (Smaller/Less Dominant) -->
+                <div class="stats-grid summary-stats">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-value">486</span>
+                            <span class="stat-label">Students Monitored</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> +24 assessed this week</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-value">72%</span>
+                            <span class="stat-label">Industry Readiness</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> ↑ 8% vs last semester</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-value">3</span>
+                            <span class="stat-label">Critical Skill Gaps</span>
+                            <span class="stat-trend neutral"><i class="ph ph-lightning"></i> 2 training bootcamps active</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-value">18</span>
+                            <span class="stat-label">Industry Partnerships</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> +3 MoUs signed</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compact Summaries: Gaps & Demand -->
+                <div class="summary-grid mt-32">
+                    
+                    <!-- Priority Skill Gaps Summary -->
+                    <section class="card">
+                        <div class="card-header border-none pb-0">
+                            <h3><i class="ph-fill ph-warning-circle text-warning"></i> Priority Skill Gaps</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="gap-summary-list">
+                                <div class="gap-sum-item">
+                                    <div class="gap-sum-label">
+                                        <span>Cloud / AWS</span>
+                                        <span class="text-danger font-bold">28% gap</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill bg-danger" style="width: 72%;"></div></div>
+                                </div>
+                                <div class="gap-sum-item">
+                                    <div class="gap-sum-label">
+                                        <span>AI / ML</span>
+                                        <span class="text-warning font-bold">18% gap</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill bg-warning" style="width: 82%;"></div></div>
+                                </div>
+                                <div class="gap-sum-item">
+                                    <div class="gap-sum-label">
+                                        <span>SQL & Data</span>
+                                        <span class="text-warning font-bold">16% gap</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill bg-warning" style="width: 84%;"></div></div>
+                                </div>
+                            </div>
+                            <button class="btn btn-text mt-24 pl-0" onclick="document.querySelector('.nav-item[data-target=\'demand\']').click()">
+                                View Skill Analytics <i class="ph ph-arrow-right"></i>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Industry Demand Summary -->
+                    <section class="card">
+                        <div class="card-header border-none pb-0">
+                            <h3><i class="ph-fill ph-trend-up text-success"></i> Industry Demand</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="demand-summary-list">
+                                <div class="demand-sum-item">
+                                    <span class="font-semibold">Cloud Architecture</span>
+                                    <span class="text-success font-bold">↑ 31%</span>
+                                </div>
+                                <div class="demand-sum-item">
+                                    <span class="font-semibold">AI / ML</span>
+                                    <span class="text-success font-bold">↑ 28%</span>
+                                </div>
+                                <div class="demand-sum-item">
+                                    <span class="font-semibold">Python</span>
+                                    <span class="text-success font-bold">↑ 24%</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-text mt-24 pl-0" onclick="document.querySelector('.nav-item[data-target=\'demand\']').click()">
+                                View Demand Matrix <i class="ph ph-arrow-right"></i>
+                            </button>
+                        </div>
+                    </section>
+
+                </div>
+
+                <!-- High-Match Opportunities Summary -->
+                <section class="card mt-32">
+                    <div class="card-header border-none pb-0">
+                        <h3>High-Match Opportunities</h3>
+                        <button class="btn-text" onclick="document.querySelector('.nav-item[data-target=\'opportunities\']').click()">
+                            View All <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="opp-summary-grid card-body">
+                        <!-- Opp 1 -->
+                        <div class="opp-summary-card">
+                            <h4>AI Engineering Intern</h4>
+                            <p class="text-muted mb-8" style="font-size: 13.5px;">ABC Technologies</p>
+                            <p class="font-semibold mb-12" style="font-size: 12.5px;">Python • ML • SQL</p>
+                            <p class="match-text text-success mt-16"><i class="ph-fill ph-check-circle"></i> 38 students eligible</p>
+                        </div>
+                        <!-- Opp 2 -->
+                        <div class="opp-summary-card">
+                            <h4>Cloud DevOps Internship</h4>
+                            <p class="text-muted mb-8" style="font-size: 13.5px;">TechCorp Global</p>
+                            <p class="font-semibold mb-12" style="font-size: 12.5px;">AWS • Docker • Linux</p>
+                            <p class="match-text text-success mt-16"><i class="ph-fill ph-check-circle"></i> 42 students eligible</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Faculty Opportunities Summary -->
+                <section class="card mt-32 mb-32">
+                    <div class="card-header border-none pb-0">
+                        <h3>Faculty Opportunities</h3>
+                        <button class="btn-text" onclick="document.querySelector('.nav-item[data-target=\'faculty\']').click()">
+                            Explore <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="font-bold text-blue mb-8">3 new opportunities</p>
+                        <p class="text-muted font-medium">• Faculty Industry Internship &nbsp;&nbsp;&nbsp; • Cloud & AI FDP &nbsp;&nbsp;&nbsp; • Applied ML Research Grant</p>
+                    </div>
+                </section>
+
+
+
+                <section class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3>Real-Time Activity & Audit Log</h3>
+                                <p class="subtitle">Latest platform updates across skill evaluations, corporate requests, and shortlist notifications.</p>
+                            </div>
+                            <span class="badge-status bg-blue-light text-blue">Live Stream</span>
+                        </div>
+                        <div class="timeline-horizontal-grid">
+                            <div class="timeline-card-item">
+                                <div class="timeline-icon bg-blue-light text-blue"><i class="ph ph-check-square"></i></div>
+                                <div class="timeline-content">
+                                    <p><strong>24 students</strong> completed Python & SQL skill assessment.</p>
+                                    <span class="time">2 hours ago</span>
+                                </div>
+                            </div>
+                            <div class="timeline-card-item">
+                                <div class="timeline-icon bg-success-light text-success"><i class="ph ph-user-check"></i></div>
+                                <div class="timeline-content">
+                                    <p><strong>12 students</strong> shortlisted by ABC Technologies for AI Intern roles.</p>
+                                    <span class="time">5 hours ago</span>
+                                </div>
+                            </div>
+                            <div class="timeline-card-item">
+                                <div class="timeline-icon bg-purple-light text-purple"><i class="ph ph-chalkboard-teacher"></i></div>
+                                <div class="timeline-content">
+                                    <p>New <strong>Cloud FDP</strong> posted by TechCorp for CSE faculty.</p>
+                                    <span class="time">Yesterday</span>
+                                </div>
+                            </div>
+                            <div class="timeline-card-item">
+                                <div class="timeline-icon bg-warning-light text-warning"><i class="ph ph-handshake"></i></div>
+                                <div class="timeline-content">
+                                    <p>MoU renewal request received from <strong>XYZ Labs</strong>.</p>
+                                    <span class="time">2 days ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+            </main>
+
+            <!-- =========================================================
+                 VIEW: STUDENT READINESS & SKILL PROFILES
+                 ========================================================= -->
+            <main class="view-section" id="view-students">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Student Skill Development & Industry Readiness</h2>
+                        <p class="subtitle">Maintain student skill profiles, track aptitude assessment results, and review verified digital portfolios.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="alert('Exporting Student Skill Registry...')">
+                        <i class="ph ph-download-simple"></i> Export Skill Registry
+                    </button>
+                </div>
+
+                <div class="card p-24 mb-24">
+                    <div class="filter-bar">
+                        <div class="search-bar" style="width: 320px;">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="studentSearchInput" placeholder="Search by name, roll no, or skill...">
+                        </div>
+                        <div class="filters">
+                            <select class="form-select" id="filterDept"><option>All Departments</option><option>CSE</option><option>IT</option><option>ECE</option></select>
+                            <select class="form-select" id="filterYear"><option>All Years</option><option>3rd Year</option><option>4th Year</option></select>
+                            <select class="form-select" id="filterStatus"><option>All Readiness Status</option><option>Placement Ready</option><option>Needs Upskilling</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Dept & Year</th>
+                                    <th>Verified Technical Skills</th>
+                                    <th>Aptitude / Soft Skills</th>
+                                    <th>Industry Readiness</th>
+                                    <th>Digital Portfolio</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentTableBody">
+                                <!-- Row 1: Aarav -->
+                                <tr>
+                                    <td>
+                                        <div class="table-user">
+                                            <div class="avatar-sm bg-blue-light text-blue">AS</div>
+                                            <div>
+                                                <span class="font-semibold">Aarav Sharma</span>
+                                                <span class="sub-text">Roll: 23CS012 • SSN CSE</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>CSE • 3rd Year</td>
+                                    <td>
+                                        <div class="tags">
+                                            <span class="tag">Python</span>
+                                            <span class="tag">SQL</span>
+                                            <span class="tag">Machine Learning</span>
+                                            <span class="tag">React</span>
+                                        </div>
+                                        <!-- The USP: Exposing the Gap -->
+                                        <div class="skill-gap">
+                                            <i class="ph-fill ph-warning-circle"></i> Deficit: Cloud Architecture (AWS)
+                                        </div>
+                                    </td>
+                                    <td><span class="badge-status bg-success-light text-success">94% Aptitude</span></td>
+                                    <td>
+                                        <div class="readiness-cell">
+                                            <span class="font-semibold">92%</span>
+                                            <div class="mini-progress"><div class="fill bg-success" style="width: 92%;"></div></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline" onclick="openPortfolioModal('Aarav Sharma', 'B.E. Computer Science', '92%')">
+                                            <i class="ph ph-eye"></i> View Portfolio
+                                        </button>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Row 2: Priya -->
+                                <tr>
+                                    <td>
+                                        <div class="table-user">
+                                            <div class="avatar-sm bg-blue-light text-blue">PN</div>
+                                            <div>
+                                                <span class="font-semibold">Priya Nair</span>
+                                                <span class="sub-text">Roll: 23IT045 • SSN IT</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>IT • 3rd Year</td>
+                                    <td>
+                                        <div class="tags">
+                                            <span class="tag">React</span>
+                                            <span class="tag">Node.js</span>
+                                            <span class="tag">AWS Cloud</span>
+                                        </div>
+                                        <!-- The USP: Exposing the Gap -->
+                                        <div class="skill-gap">
+                                            <i class="ph-fill ph-warning-circle"></i> Deficit: Python, Applied ML
+                                        </div>
+                                    </td>
+                                    <td><span class="badge-status bg-blue-light text-blue">88% Aptitude</span></td>
+                                    <td>
+                                        <div class="readiness-cell">
+                                            <span class="font-semibold">85%</span>
+                                            <div class="mini-progress"><div class="fill bg-blue" style="width: 85%;"></div></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline" onclick="openPortfolioModal('Priya Nair', 'B.Tech Information Technology', '85%')">
+                                            <i class="ph ph-eye"></i> View Portfolio
+                                        </button>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Row 3: Rahul -->
+                                <tr>
+                                    <td>
+                                        <div class="table-user">
+                                            <div class="avatar-sm bg-blue-light text-blue">RV</div>
+                                            <div>
+                                                <span class="font-semibold">Rahul Verma</span>
+                                                <span class="sub-text">Roll: 23CS089 • SSN CSE</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>CSE • 3rd Year</td>
+                                    <td>
+                                        <div class="tags">
+                                            <span class="tag">Java</span>
+                                            <span class="tag">C++</span>
+                                            <span class="tag">Data Structures</span>
+                                        </div>
+                                        <!-- The USP: Exposing the Gap -->
+                                        <div class="skill-gap" style="background: var(--warning-light); color: var(--warning); border-color: rgba(245, 158, 11, 0.2);">
+                                            <i class="ph-fill ph-warning-circle"></i> Deficit: React, Cloud Deployments
+                                        </div>
+                                    </td>
+                                    <td><span class="badge-status bg-warning-light text-warning">71% Aptitude</span></td>
+                                    <td>
+                                        <div class="readiness-cell">
+                                            <span class="font-semibold">64%</span>
+                                            <div class="mini-progress"><div class="fill bg-warning" style="width: 64%;"></div></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline" onclick="openPortfolioModal('Rahul Verma', 'B.E. Computer Science', '64%')">
+                                            <i class="ph ph-eye"></i> View Portfolio
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: INDUSTRY DEMAND & GAPS
+                 ========================================================= -->
+            <main class="view-section" id="view-demand">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Industry Demand vs Student Skill Proficiency</h2>
+                        <p class="subtitle">Analyze market demand curves against institutional readiness to optimize curriculum alignment.</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid grid-3">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Fastest Growing Demand</span>
+                            <span class="stat-value">Cloud & AWS</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> ↑ 31% Growth</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Most In-Demand Role</span>
+                            <span class="stat-value">GenAI / ML Engineer</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> ↑ 28% Requests</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Core Baseline Skill</span>
+                            <span class="stat-value">Python & SQL</span>
+                            <span class="stat-trend success"><i class="ph ph-trend-up"></i> 86% Requisite</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-24">
+                    <div class="card-header">
+                        <h3>Comprehensive Skill Mapping & Deficit Analysis</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Skill Domain</th>
+                                    <th>Industry Demand (%)</th>
+                                    <th>Student Proficiency (%)</th>
+                                    <th>Deficit Gap (%)</th>
+                                    <th>Actionable Recommendation</th>
+                                    <th>Intervention Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="font-semibold">Cloud Computing (AWS/GCP)</td>
+                                    <td>76%</td>
+                                    <td>48%</td>
+                                    <td><span class="gap-badge">28% Gap</span></td>
+                                    <td>Organize AWS Cloud Fundamentals Certification</td>
+                                    <td><span class="badge-status bg-warning-light text-warning">Batch Scheduled</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-semibold">Applied Machine Learning & GenAI</td>
+                                    <td>71%</td>
+                                    <td>59%</td>
+                                    <td><span class="gap-badge">12% Gap</span></td>
+                                    <td>Launch Hands-on PyTorch & LLM Lab</td>
+                                    <td><span class="badge-status bg-success-light text-success">Ongoing</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-semibold">Data Engineering & SQL</td>
+                                    <td>68%</td>
+                                    <td>52%</td>
+                                    <td><span class="gap-badge">16% Gap</span></td>
+                                    <td>Schedule BigData Schema & Analytics Bootcamp</td>
+                                    <td><span class="badge-status bg-blue-light text-blue">Curriculum Revised</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="font-semibold">Full-Stack Web (React/Node)</td>
+                                    <td>64%</td>
+                                    <td>61%</td>
+                                    <td><span class="badge-status bg-success-light text-success">3% Gap (Aligned)</span></td>
+                                    <td>Continue Capstone Industry Mentorships</td>
+                                    <td><span class="badge-status bg-success-light text-success">Optimal</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: STUDENT OPPORTUNITIES
+                 ========================================================= -->
+            <main class="view-section" id="view-opportunities">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Student Opportunities & Internships</h2>
+                        <p class="subtitle">Broadcast partner job openings, internships, and live challenges to matching candidate pools.</p>
+                    </div>
+                </div>
+                <div class="card p-24 text-center">
+                    <i class="ph ph-briefcase text-blue" style="font-size: 48px;"></i>
+                    <h3 class="mt-16">Active Corporate Opportunities Pipeline</h3>
+                    <p class="text-muted mt-8">34 active opportunities posted by verified industry partners. Students are auto-matched based on digital portfolios.</p>
+                    <button class="btn btn-primary mt-16" onclick="document.querySelector('.nav-item[data-target=\'dashboard\']').click()"><i class="ph ph-arrow-left"></i> Return to Dashboard View</button>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: FACULTY OPPORTUNITIES
+                 ========================================================= -->
+            <main class="view-section" id="view-faculty">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Faculty Opportunities & Industry Engagement</h2>
+                        <p class="subtitle">Faculty internships, Industrial Training, FDPs, Consultancy, and Collaborative Research Grants.</p>
+                    </div>
+                </div>
+                <div class="card p-24 text-center">
+                    <i class="ph ph-chalkboard-teacher text-blue" style="font-size: 48px;"></i>
+                    <h3 class="mt-16">Academician Career & Research Enrichment</h3>
+                    <p class="text-muted mt-8">Explore faculty sabbatical internships at ABC Tech, sponsored AI research grants, and corporate consultancy projects.</p>
+                    <button class="btn btn-primary mt-16" onclick="document.querySelector('.nav-item[data-target=\'dashboard\']').click()"><i class="ph ph-arrow-left"></i> Return to Dashboard View</button>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: COLLABORATIONS
+                 ========================================================= -->
+            <main class="view-section" id="view-collaborations">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Academia-Industry Collaborations & MoUs</h2>
+                        <p class="subtitle">Track active corporate MoUs, co-developed Centers of Excellence, and live hackathon challenges.</p>
+                    </div>
+                </div>
+                <div class="card p-24 text-center">
+                    <i class="ph ph-handshake text-blue" style="font-size: 48px;"></i>
+                    <h3 class="mt-16">18 Active Industry Partnerships</h3>
+                    <p class="text-muted mt-8">Manage joint labs, corporate mentorship tracks, and guest speaker sessions across departments.</p>
+                    <button class="btn btn-primary mt-16" onclick="document.querySelector('.nav-item[data-target=\'dashboard\']').click()"><i class="ph ph-arrow-left"></i> Return to Dashboard View</button>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: PLACEMENTS & INTERNSHIPS
+                 ========================================================= -->
+            <main class="view-section" id="view-placements">
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Placement & Internship Progress Analytics</h2>
+                        <p class="subtitle">Comprehensive conversion metrics, hiring trends, and corporate placement records.</p>
+                    </div>
+                </div>
+                <div class="card p-24 text-center">
+                    <i class="ph ph-chart-line-up text-blue" style="font-size: 48px;"></i>
+                    <h3 class="mt-16">Batch 2026-27 Placement Performance</h3>
+                    <p class="text-muted mt-8">52 placed offers secured, 148 candidates shortlisted, 312 students undergoing corporate internships.</p>
+                    <button class="btn btn-primary mt-16" onclick="document.querySelector('.nav-item[data-target=\'dashboard\']').click()"><i class="ph ph-arrow-left"></i> Return to Dashboard View</button>
+                </div>
+            </main>
+
+            <!-- =========================================================
+                 VIEW: LINKEDIN-STYLE INSTITUTION & ACADEMICIAN PROFILE
+                 ========================================================= -->
+            <main class="view-section" id="view-profile">
+                <!-- Profile Hero Card (LinkedIn Banner + Avatar) -->
+                <div class="profile-hero card">
+                    <div class="hero-bg"></div>
+                    <div class="hero-content">
+                        <div class="inst-avatar">SSN</div>
+                        <div class="inst-details">
+                            <div class="inst-title">
+                                <h2>SSN College of Engineering</h2>
+                                <span class="verified-badge"><i class="ph-fill ph-seal-check"></i> Verified Institution</span>
+                                <span class="accreditation-pill">NAAC A++ Grade</span>
+                                <span class="accreditation-pill">NIRF Rank #45</span>
+                            </div>
+                            <p class="inst-meta">Autonomous Engineering Institution • Affiliated to Anna University • Established 1996 • Chennai, Tamil Nadu</p>
+                            <a href="https://www.ssn.edu.in" target="_blank" class="inst-link"><i class="ph ph-globe"></i> https://www.ssn.edu.in</a>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn btn-primary" onclick="alert('Editing Institution Profile...')"><i class="ph ph-pencil-simple"></i> Edit Profile</button>
+                            <button class="btn btn-outline" onclick="alert('Public Profile URL copied to clipboard!')"><i class="ph ph-share-network"></i> Share</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Institutional KPI Bar -->
+                    <div class="inst-stats-bar">
+                        <div class="i-stat">
+                            <span class="val">4,800+</span>
+                            <span class="lbl">Enrolled Students</span>
+                        </div>
+                        <div class="i-stat">
+                            <span class="val">32</span>
+                            <span class="lbl">Industry MoUs</span>
+                        </div>
+                        <div class="i-stat">
+                            <span class="val">14</span>
+                            <span class="lbl">Centers of Excellence</span>
+                        </div>
+                        <div class="i-stat">
+                            <span class="val text-success">91%</span>
+                            <span class="lbl">Placement Rate</span>
+                        </div>
+                        <div class="i-stat">
+                            <span class="val text-blue">₹14.2 LPA</span>
+                            <span class="lbl">Avg CSE Package</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LinkedIn-Style Detailed Layout Grid -->
+                <div class="profile-layout-grid">
+                    <!-- Left Column (Main Profile) -->
+                    <div class="profile-col-main">
+                        <!-- About Institution -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-info text-blue"></i> About the Institution</h3>
+                            <p class="text-content">SSN College of Engineering, founded by Dr. Shiv Nadar, is a top-ranked research institution dedicated to fostering visionary engineers and researchers. With state-of-the-art research parks, dedicated industry Centers of Excellence, and an outcome-based curriculum, SSN bridges academia with cutting-edge industry demands.</p>
+                            
+                            <h4 class="font-bold mt-20 mb-8" style="font-size: 14px;">Key Academic Departments & Programs</h4>
+                            <div class="tags">
+                                <span class="tag">B.E. Computer Science & Engineering</span>
+                                <span class="tag">B.Tech Information Technology</span>
+                                <span class="tag">B.E. Electronics & Communication</span>
+                                <span class="tag">B.Tech Artificial Intelligence & Data Science</span>
+                                <span class="tag">M.E. Cloud Computing & Big Data</span>
+                            </div>
+                        </section>
+
+                        <!-- Academician Dossier: Dr. Priya Menon (LinkedIn Style) -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-user-circle text-blue"></i> Academician Lead Dossier</h3>
+                            <div class="academician-lead-card">
+                                <img src="https://ui-avatars.com/api/?name=Priya+Menon&background=EFF6FF&color=1D4ED8&bold=true" alt="Dr. Priya Menon" class="avatar-2xl">
+                                <div class="acad-info">
+                                    <h4>Dr. Priya Menon</h4>
+                                    <p class="designation">Dean • Corporate Relations & Industry Linkage</p>
+                                    <p class="affiliation">Professor, Department of Computer Science & Engineering • SSN CE</p>
+                                    
+                                    <!-- Experience Timeline -->
+                                    <div class="experience-timeline">
+                                        <div class="exp-item">
+                                            <h5>Dean of Corporate Relations & Industry Partnerships</h5>
+                                            <p>SSN College of Engineering • Full-time</p>
+                                            <span class="exp-duration">2020 – Present • 6 yrs</span>
+                                        </div>
+                                        <div class="exp-item">
+                                            <h5>Principal Research Scientist</h5>
+                                            <p>TechCorp R&D Labs, Bengaluru</p>
+                                            <span class="exp-duration">2015 – 2020 • 5 yrs</span>
+                                        </div>
+                                        <div class="exp-item">
+                                            <h5>Ph.D. in Computer Science (Distributed Systems & ML)</h5>
+                                            <p>Indian Institute of Science (IISc), Bangalore</p>
+                                            <span class="exp-duration">2010 – 2015</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Publications & Research -->
+                                    <h5 class="font-bold mt-24" style="font-size: 14px;">Notable Research Publications & Patents</h5>
+                                    <div class="publication-badge-list">
+                                        <div class="pub-item">
+                                            <div class="pub-title">"Optimized Edge AI Inference Scheduling in Heterogeneous Cloud Environments"</div>
+                                            <div class="pub-meta"><span>IEEE Transactions on Cloud Computing (2025)</span> • <span>Citations: 42</span></div>
+                                        </div>
+                                        <div class="pub-item">
+                                            <div class="pub-title">Patent: "Automated Competency Mapping for Engineering Skill Development via Graph Networks"</div>
+                                            <div class="pub-meta"><span>Indian Patent Office • Granted (2024)</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Centers of Excellence & Industry Labs -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-buildings text-blue"></i> Centers of Excellence (CoE) & Co-Sponsored Labs</h3>
+                            <div class="coe-grid">
+                                <div class="coe-card">
+                                    <h4>AWS Cloud Innovation Center</h4>
+                                    <p class="coe-sponsor"><i class="ph-fill ph-seal-check"></i> Amazon Web Services Partnership</p>
+                                    <p class="coe-desc">Dedicated 120-seat high-performance cloud compute facility providing hands-on AWS certification training.</p>
+                                </div>
+                                <div class="coe-card">
+                                    <h4>GenAI & Data Intelligence Lab</h4>
+                                    <p class="coe-sponsor"><i class="ph-fill ph-seal-check"></i> ABC Technologies Co-Sponsored</p>
+                                    <p class="coe-desc">Corporate-sponsored R&D hub developing enterprise LLM fine-tuning pipelines and NLP models.</p>
+                                </div>
+                                <div class="coe-card">
+                                    <h4>Autonomous Robotics Research Hub</h4>
+                                    <p class="coe-sponsor"><i class="ph-fill ph-seal-check"></i> XYZ Research Labs Partnership</p>
+                                    <p class="coe-desc">Robotics and embedded systems testbed for drone navigation and industrial automation projects.</p>
+                                </div>
+                                <div class="coe-card">
+                                    <h4>Cybersecurity & Threat Defense CoE</h4>
+                                    <p class="coe-sponsor"><i class="ph-fill ph-seal-check"></i> National Cyber Safety Net</p>
+                                    <p class="coe-desc">SOC simulator and ethical hacking training lab for advanced security auditing.</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Right Column (Sidebar Information) -->
+                    <div class="profile-col-side">
+                        <!-- Accreditation & Quality Standards -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-medal text-blue"></i> Accreditations</h3>
+                            <div class="accred-list">
+                                <div class="accred-item">
+                                    <span class="accred-name">NAAC Accreditation</span>
+                                    <span class="accred-grade">Grade A++ (3.72/4.0)</span>
+                                </div>
+                                <div class="accred-item">
+                                    <span class="accred-name">NIRF 2025 Ranking</span>
+                                    <span class="accred-grade">Rank #45 (Engineering)</span>
+                                </div>
+                                <div class="accred-item">
+                                    <span class="accred-name">NBA Accreditation</span>
+                                    <span class="accred-grade">Tier-1 Validated</span>
+                                </div>
+                                <div class="accred-item">
+                                    <span class="accred-name">QS Asia University Band</span>
+                                    <span class="accred-grade">Top 250</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Key Industry MoU Partners -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-handshake text-blue"></i> Key MoU Partners</h3>
+                            <div class="mou-list">
+                                <div class="mou-item">
+                                    <div class="logo-box">ABC</div>
+                                    <div class="mou-info">
+                                        <h5>ABC Technologies</h5>
+                                        <p>MoU Active • 2024–2027</p>
+                                    </div>
+                                </div>
+                                <div class="mou-item">
+                                    <div class="logo-box" style="background: #E0F2FE; color: #0284C7;">TC</div>
+                                    <div class="mou-info">
+                                        <h5>TechCorp Global</h5>
+                                        <p>MoU Active • 2023–2026</p>
+                                    </div>
+                                </div>
+                                <div class="mou-item">
+                                    <div class="logo-box" style="background: #F3E8FF; color: #7C3AED;">XYZ</div>
+                                    <div class="mou-info">
+                                        <h5>XYZ Research Labs</h5>
+                                        <p>MoU Active • 2025–2028</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Placement Cell Contact -->
+                        <section class="card p-24">
+                            <h3 class="section-title"><i class="ph ph-phone-call text-blue"></i> Corporate Relations Contact</h3>
+                            <ul class="contact-list">
+                                <li><i class="ph ph-user"></i><span>Dr. Rajesh Kumar (Placement Officer)</span></li>
+                                <li><i class="ph ph-envelope-simple"></i><span>placement@ssn.edu.in</span></li>
+                                <li><i class="ph ph-phone"></i><span>+91 44 2746 9700 / Ext 142</span></li>
+                                <li><i class="ph ph-map-pin"></i><span>Rajiv Gandhi Salai (OMR), Kalavakkam, Chennai 603110</span></li>
+                            </ul>
+                            <button class="btn btn-outline w-100 mt-16" onclick="alert('Downloading Placement Brochure 2026-27...')">
+                                <i class="ph ph-download"></i> Placement Brochure
+                            </button>
+                        </section>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         STUDENT DIGITAL PORTFOLIO PREVIEW MODAL
+         ========================================================= -->
+    <div class="modal-overlay" id="portfolioModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="portfolioModalTitle">Verified Digital Student Portfolio</h3>
+                <button class="icon-btn" onclick="closePortfolioModal()"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="academician-lead-card mb-24">
+                    <div class="avatar-2xl bg-blue-light text-blue font-bold" style="display:flex;align-items:center;justify-content:center;font-size:28px;">AS</div>
+                    <div>
+                        <h4 id="modalStudentName">Aarav Sharma</h4>
+                        <p class="designation" id="modalStudentDept">B.E. Computer Science • 3rd Year</p>
+                        <p class="affiliation"><i class="ph-fill ph-seal-check text-blue"></i> Identity & Academic Record Verified by SSN CE</p>
+                    </div>
+                </div>
+
+                <h4 class="font-bold mb-8" style="font-size: 14px;">1. Verified Technical Skills & Badges</h4>
+                <div class="tags mb-16">
+                    <span class="tag"><i class="ph-fill ph-check-circle text-success"></i> Python (Advanced 94%)</span>
+                    <span class="tag"><i class="ph-fill ph-check-circle text-success"></i> SQL & Relational DBs (88%)</span>
+                    <span class="tag"><i class="ph-fill ph-check-circle text-success"></i> Machine Learning (92%)</span>
+                    <span class="tag"><i class="ph-fill ph-check-circle text-success"></i> React & JavaScript (84%)</span>
+                </div>
+
+                <h4 class="font-bold mb-8" style="font-size: 14px;">2. Verified Industry Certifications</h4>
+                <div class="publication-badge-list mb-16">
+                    <div class="pub-item">
+                        <div class="pub-title">AWS Certified Cloud Practitioner (CLF-C02)</div>
+                        <div class="pub-meta"><span>Amazon Web Services</span> • <span>Credential ID: AWS-849204</span></div>
+                    </div>
+                    <div class="pub-item">
+                        <div class="pub-title">Deep Learning Specialization (DeepLearning.AI)</div>
+                        <div class="pub-meta"><span>Coursera Verified</span> • <span>Completed: Jan 2026</span></div>
+                    </div>
+                </div>
+
+                <h4 class="font-bold mb-8" style="font-size: 14px;">3. Capstone Projects & Internship Experience</h4>
+                <div class="experience-timeline">
+                    <div class="exp-item">
+                        <h5>AI-Driven Clinical Triage Assistant</h5>
+                        <p>Built with PyTorch, FastAPI, and Next.js • 94% diagnostic accuracy</p>
+                        <span class="exp-duration">Won 1st Place at Smart India Hackathon internal round</span>
+                    </div>
+                    <div class="exp-item">
+                        <h5>Summer Intern • Cloud Solutions</h5>
+                        <p>ABC Technologies • 8 Weeks • Built automated ETL pipeline</p>
+                        <span class="exp-duration">Rating: 4.9/5 by Industry Mentor</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePortfolioModal()">Close</button>
+                <button class="btn btn-primary" onclick="toggleEndorse(this)">
+    <i class="ph ph-thumbs-up"></i> Endorse for Placement
+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script src="script.js"></script>
+</body>
+</html>

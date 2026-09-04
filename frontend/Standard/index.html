@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal | BridgeX</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ================= AUTH SCREEN (Login / Sign Up) ================= -->
+    <!-- Hidden by default; shown by script (2).js when no valid Supabase session exists. -->
+    <div id="auth-screen" class="auth-screen" style="display:none;">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <i class="ph-fill ph-buildings"></i>
+                <span>BridgeX</span>
+            </div>
+            <p class="auth-subtitle">Student Portal</p>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" id="auth-tab-signin" data-mode="signin">Sign In</button>
+                <button type="button" class="auth-tab" id="auth-tab-signup" data-mode="signup">Sign Up</button>
+            </div>
+
+            <div id="auth-status-banner" class="app-status-banner" style="display:none; margin:0 0 20px;"></div>
+
+            <!-- Sign In form -->
+            <form id="signin-form" class="auth-form">
+                <label class="auth-label" for="signin-email">Email</label>
+                <input type="email" id="signin-email" class="auth-input" placeholder="you@college.edu" required autocomplete="email">
+
+                <label class="auth-label" for="signin-password">Password</label>
+                <input type="password" id="signin-password" class="auth-input" placeholder="Your password" required autocomplete="current-password">
+
+                <button type="submit" class="btn btn-primary w-full mt-16" id="signin-submit-btn">Sign In</button>
+            </form>
+
+            <!-- Sign Up form -->
+            <form id="signup-form" class="auth-form" style="display:none;">
+                <label class="auth-label" for="signup-email">Email</label>
+                <input type="email" id="signup-email" class="auth-input" placeholder="you@college.edu" required autocomplete="email">
+
+                <label class="auth-label" for="signup-password">Password</label>
+                <input type="password" id="signup-password" class="auth-input" placeholder="At least 8 characters" required autocomplete="new-password">
+
+                <label class="auth-label" for="signup-confirm-password">Confirm Password</label>
+                <input type="password" id="signup-confirm-password" class="auth-input" placeholder="Re-enter your password" required autocomplete="new-password">
+
+                <button type="submit" class="btn btn-primary w-full mt-16" id="signup-submit-btn">Sign Up</button>
+            </form>
+
+            <p class="auth-switch">
+                <span id="auth-switch-to-signup">Don't have an account? <a href="#" id="auth-link-signup">Sign up</a></span>
+                <span id="auth-switch-to-signin" style="display:none;">Already have an account? <a href="#" id="auth-link-signin">Sign in</a></span>
+            </p>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="app-wrapper" style="display:none;">
+        <!-- Clean Left Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph-fill ph-buildings"></i>
+                    <span>BridgeX</span>
+                </div>
+                <span class="role-label">Student Portal</span>
+                <button class="mobile-close" id="mobileCloseBtn"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-target="dashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
+<a href="#" class="nav-item" data-target="profile"><i class="ph ph-user"></i> My Profile</a>
+<a href="#" class="nav-item" data-target="opportunities"><i class="ph ph-briefcase"></i> Opportunities</a>
+<a href="#" class="nav-item" data-target="assessment"><i class="ph ph-target"></i> Skill Assessment</a>
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-paper-plane-tilt"></i> Applications</a>
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-folder-star"></i> My Portfolio</a>
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-book-open"></i> Learning</a>
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-calendar-blank"></i> Events</a>
+
+<div class="nav-divider"></div>
+
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-map-trifold"></i> Career Roadmap</a>
+<a href="#" class="nav-item disabled" title="Coming soon"><i class="ph ph-gear"></i> Settings</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="student-profile-mini">
+                    <img src="https://ui-avatars.com/api/?name=Aarav+Sharma&background=DBEAFE&color=2563EB" alt="Aarav Sharma" class="avatar">
+                    <div class="info">
+                        <span class="name">Aarav Sharma</span>
+                        <span class="degree">B.E. Computer Science</span>
+                    </div>
+                    <button class="icon-btn" id="logout-btn" title="Log out"><i class="ph ph-sign-out"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Minimal Top Navbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" id="mobileToggleBtn"><i class="ph ph-list"></i></button>
+                </div>
+                <div class="topbar-right">
+                    <div class="search-wrap">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Search opportunities, skills...">
+                    </div>
+                    <button class="icon-btn"><i class="ph ph-question"></i></button>
+                    <button class="icon-btn notification-btn">
+                        <i class="ph ph-bell"></i>
+                        <span class="indicator"></span>
+                    </button>
+                    <div class="top-profile">
+                        <img src="https://ui-avatars.com/api/?name=Aarav+Sharma&background=DBEAFE&color=2563EB" alt="Avatar">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Global status banner: loading / error / offline / auth states -->
+            <div id="app-status-banner" class="app-status-banner" style="display:none;"></div>
+
+            <!-- ================= VIEW: DASHBOARD ================= -->
+            <div class="view-section active" id="view-dashboard">
+                
+                <!-- Welcoming Header -->
+                <header class="page-header">
+                    <div class="header-text">
+                        <h1>Good morning, Aarav 👋</h1>
+                        <p>You're making solid progress. Here's what deserves your attention today.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="switchView('assessment')">Continue Assessment</button>
+                </header>
+
+                <!-- Shown only when GET /dashboard returns status = "analysis_required" -->
+                <section class="progress-section" id="analysis-required-cta" style="display:none;">
+                    <div class="progress-header">
+                        <h2>Get Your AI Insights</h2>
+                        <p class="encouragement">
+                            <i class="ph-fill ph-sparkle text-blue"></i>
+                            <span id="analysis-required-message">No AI insights yet. Analyze your profile to generate your first recommendations and skill gap analysis.</span>
+                        </p>
+                    </div>
+                    <button class="btn btn-primary" id="analyze-profile-btn">Analyze My Profile</button>
+                </section>
+
+                <!-- Real dashboard content — visible by default (matches original static UI);
+                     JS hides this only when it has positively confirmed status = "analysis_required" -->
+                <div id="ai-dashboard-content">
+
+                <!-- 1. Progress Section (Unified & Spacious) -->
+                <section class="progress-section">
+                    <div class="progress-header">
+                        <h2>Your Career Progress</h2>
+                        <p class="encouragement">
+                            <i class="ph-fill ph-sparkle text-blue"></i> 
+                            You're building a strong foundation. Improving Cloud and Data skills could increase your opportunity matches by 24%.
+                        </p>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-block">
+                            <span class="metric-label">Profile Completion</span>
+                            <span class="metric-value" id="metric-profile-completion-value">84%</span>
+                            <div class="progress-track"><div class="progress-fill" id="metric-profile-completion-fill" style="width: 84%;"></div></div>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Industry Readiness</span>
+                            <span class="metric-value" id="metric-industry-readiness-value">72%</span>
+                            <div class="progress-track"><div class="progress-fill" id="metric-industry-readiness-fill" style="width: 72%;"></div></div>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Skills Assessed</span>
+                            <span class="metric-value">18 <span class="text-muted">/ 24</span></span>
+                            <div class="progress-track"><div class="progress-fill" style="width: 75%;"></div></div>
+                        </div>
+                        <div class="metric-block">
+                            <span class="metric-label">Portfolio Strength</span>
+                            <span class="metric-value">78%</span>
+                            <div class="progress-track"><div class="progress-fill" style="width: 78%;"></div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. Recommended For You (Generous Spacing) -->
+                <section class="spaced-section">
+                    <div class="section-heading">
+                        <h2>Recommended for You</h2>
+                        <p class="section-sub">Opportunities that match your verified skills and interests.</p>
+                    </div>
+                    
+                    <div class="recommendation-grid" id="recommendation-grid">
+                        <div class="opp-card">
+                            <div class="opp-header">
+                                <div class="match-badge">92% Match</div>
+                                <button class="bookmark-btn"><i class="ph ph-bookmark-simple"></i></button>
+                            </div>
+                            <h3 class="opp-title">AI Engineering Intern</h3>
+                            <p class="opp-company">ABC Technologies</p>
+                            <div class="opp-tags">
+                                <span>Python</span><span>Machine Learning</span><span>SQL</span>
+                            </div>
+                            <div class="opp-footer">
+                                <span class="opp-detail"><i class="ph ph-clock"></i> 4 weeks</span>
+                                <span class="opp-detail"><i class="ph ph-wallet"></i> ₹15,000/mo</span>
+                            </div>
+                            <button class="btn btn-outline w-full mt-24">View Opportunity</button>
+                        </div>
+
+                        <div class="opp-card">
+                            <div class="opp-header">
+                                <div class="match-badge">86% Match</div>
+                                <button class="bookmark-btn"><i class="ph ph-bookmark-simple"></i></button>
+                            </div>
+                            <h3 class="opp-title">Data Analytics Internship</h3>
+                            <p class="opp-company">TechCorp</p>
+                            <div class="opp-tags">
+                                <span>SQL</span><span>Python</span><span>Power BI</span>
+                            </div>
+                            <div class="opp-footer">
+                                <span class="opp-detail"><i class="ph ph-clock"></i> 8 weeks</span>
+                                <span class="opp-detail"><i class="ph ph-map-pin"></i> Remote</span>
+                            </div>
+                            <button class="btn btn-outline w-full mt-24">View Opportunity</button>
+                        </div>
+
+                        <div class="opp-card event-card">
+                            <div class="opp-header">
+                                <div class="match-badge event-badge">Recommended Event</div>
+                            </div>
+                            <h3 class="opp-title">AI & Cloud Workshop</h3>
+                            <p class="opp-company">XYZ Labs • Online</p>
+                            <p class="event-desc">A deep dive into deploying ML models on AWS. Highly relevant to your career goals.</p>
+                            <div class="opp-footer mt-auto">
+                                <span class="opp-detail"><i class="ph ph-calendar"></i> Aug 28, 2026</span>
+                            </div>
+                            <button class="btn btn-primary w-full mt-24">Register Now</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3 & 4. Skills & Skill Gap (Two Columns) -->
+                <section class="two-col-section">
+                    <div class="skills-column">
+                        <div class="section-heading">
+                            <h2>Your Skills</h2>
+                            <p class="section-sub">See what you're strong at and where you can improve.</p>
+                        </div>
+                        
+                        <div class="clean-skill-list" id="dashboard-skills-list">
+                            <div class="skill-row">
+                                <div class="skill-info"><span>Python</span> <span class="skill-pct">85%</span></div>
+                                <div class="progress-track"><div class="progress-fill" style="width: 85%;"></div></div>
+                            </div>
+                            <div class="skill-row">
+                                <div class="skill-info"><span>SQL</span> <span class="skill-pct">74%</span></div>
+                                <div class="progress-track"><div class="progress-fill" style="width: 74%;"></div></div>
+                            </div>
+                            <div class="skill-row">
+                                <div class="skill-info"><span>React</span> <span class="skill-pct">62%</span></div>
+                                <div class="progress-track"><div class="progress-fill" style="width: 62%;"></div></div>
+                            </div>
+                            <div class="skill-row">
+                                <div class="skill-info"><span>Machine Learning</span> <span class="skill-pct">56%</span></div>
+                                <div class="progress-track"><div class="progress-fill" style="width: 56%;"></div></div>
+                            </div>
+                            <div class="skill-row">
+                                <div class="skill-info"><span>Cloud / AWS</span> <span class="skill-pct">38%</span></div>
+                                <div class="progress-track"><div class="progress-fill bg-amber" style="width: 38%;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gap-column">
+                        <div class="section-heading">
+                            <h2>Your Next Step</h2>
+                            <p class="section-sub">AI-identified focus area to boost employability.</p>
+                        </div>
+                        
+                        <div class="insight-card" id="top-skill-gap-card">
+                            <div class="insight-header">
+                                <h3 id="top-skill-gap-title">Cloud / AWS</h3>
+                                <span class="insight-label"><i class="ph-fill ph-sparkle"></i> AI Insight</span>
+                            </div>
+                            
+                            <div class="gap-metrics">
+                                <div class="g-metric"><span>Your level</span><strong id="top-skill-gap-current">38%</strong></div>
+                                <div class="g-metric"><span>Industry demand</span><strong id="top-skill-gap-required">76%</strong></div>
+                                <div class="g-metric gap-highlight"><span>Gap</span><strong id="top-skill-gap-value">38%</strong></div>
+                            </div>
+                            
+                            <p class="insight-text">Cloud skills are frequently requested in the AI and Data internships you're interested in. Improving this skill could open significantly more opportunities.</p>
+                            
+                            <div class="insight-actions">
+                                <button class="btn btn-primary" onclick="switchView('opportunities')">View Relevant Opportunities</button>
+                                <button class="btn btn-text" onclick="switchView('opportunities')">See Learning Options</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Career Paths -->
+                <section class="spaced-section">
+                    <div class="section-heading">
+                        <h2>Career Paths That Fit You</h2>
+                        <p class="section-sub">Based on your skills and industry trends.</p>
+                    </div>
+                    
+                    <div class="career-path-list">
+                        <div class="path-item">
+                            <div class="path-main">
+                                <h3>AI Engineer</h3>
+                                <div class="path-match"><div class="dot bg-success"></div> 91% alignment</div>
+                            </div>
+                            <div class="path-details">
+                                <div class="detail-group">
+                                    <span class="d-label">Strong match</span>
+                                    <span class="d-val">Python, ML, SQL</span>
+                                </div>
+                                <div class="detail-group">
+                                    <span class="d-label">To improve</span>
+                                    <span class="d-val text-amber">Model Deployment, Cloud</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline">Explore</button>
+                        </div>
+
+                        <div class="path-item">
+                            <div class="path-main">
+                                <h3>Data Scientist</h3>
+                                <div class="path-match"><div class="dot bg-success"></div> 84% alignment</div>
+                            </div>
+                            <div class="path-details">
+                                <div class="detail-group">
+                                    <span class="d-label">Strong match</span>
+                                    <span class="d-val">Python, SQL, Analytics</span>
+                                </div>
+                                <div class="detail-group">
+                                    <span class="d-label">To improve</span>
+                                    <span class="d-val text-amber">Big Data, R</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline">Explore</button>
+                        </div>
+                    </div>
+                </section>
+                
+                </div>
+                <!-- end #ai-dashboard-content -->
+
+                <!-- Bottom Sections: Apps & Portfolio -->
+                <section class="two-col-section mb-64">
+                    <div>
+                        <div class="section-heading">
+                            <h2>Your Applications</h2>
+                        </div>
+                        <div class="clean-timeline">
+                            <div class="tl-item">
+                                <div class="tl-content">
+                                    <h4>AI Engineer Intern • <span class="fw-normal text-muted">ABC Tech</span></h4>
+                                    <span class="tl-date">Applied Aug 21</span>
+                                </div>
+                                <span class="status-badge status-success">Shortlisted</span>
+                            </div>
+                            <div class="tl-item">
+                                <div class="tl-content">
+                                    <h4>Data Analyst Intern • <span class="fw-normal text-muted">TechCorp</span></h4>
+                                    <span class="tl-date">Applied Aug 18</span>
+                                </div>
+                                <span class="status-badge status-neutral">Under Review</span>
+                            </div>
+                            <div class="tl-item pb-0 border-none">
+                                <div class="tl-content">
+                                    <h4>Frontend Intern • <span class="fw-normal text-muted">XYZ Labs</span></h4>
+                                    <span class="tl-date">Applied Aug 12</span>
+                                </div>
+                                <span class="status-badge status-blue">Interview</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-text mt-16 pl-0">View All Applications <i class="ph ph-arrow-right"></i></button>
+                    </div>
+
+                    <div>
+                        <div class="section-heading">
+                            <h2>Your Portfolio Preview</h2>
+                        </div>
+                        <div class="portfolio-preview-card">
+                            <div class="pp-stats">
+                                <div class="pp-stat"><span>Projects</span><strong>6</strong></div>
+                                <div class="pp-stat"><span>Certifications</span><strong>8</strong></div>
+                                <div class="pp-stat"><span>Achievements</span><strong>4</strong></div>
+                                <div class="pp-stat"><span>Internships</span><strong>2</strong></div>
+                            </div>
+                            <div class="pp-actions">
+                                <button class="btn btn-outline" onclick="switchView('profile')">Edit Portfolio</button>
+                                <button class="btn btn-text">Preview Public Profile</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ================= VIEW: PROFILE / PORTFOLIO ================= -->
+            <div class="view-section" id="view-profile" style="display: none;">
+                <div class="profile-hero">
+                    <div class="ph-avatar">
+                        <img src="https://ui-avatars.com/api/?name=Aarav+Sharma&background=DBEAFE&color=2563EB&size=120" alt="Aarav">
+                    </div>
+                    <div class="ph-info">
+                        <h1>Aarav Sharma</h1>
+                        <p class="ph-headline">B.E. Computer Science • SSN College of Engineering</p>
+                        <span class="open-badge">Open to internships</span>
+                    </div>
+                    <div class="ph-actions">
+                        <button class="btn btn-outline">Preview Public Profile</button>
+                        <button class="btn btn-primary"><i class="ph ph-pencil-simple"></i> Edit Profile</button>
+                    </div>
+                </div>
+
+                <div class="profile-layout">
+                    <!-- Main Column -->
+                    <div class="p-main">
+                        <section class="p-section">
+                            <h2>About Me</h2>
+                            <p class="p-text">Computer Science student passionate about Artificial Intelligence and Data Analytics. Experienced in building scalable web applications and deploying machine learning models. Looking for an internship to apply my technical skills to real-world industry problems.</p>
+                        </section>
+
+                        <section class="p-section">
+                            <h2>Projects</h2>
+                            <div class="project-list">
+                                <div class="project-item">
+                                    <h3>AI Study Assistant</h3>
+                                    <span class="p-date">Jan 2026 - Present</span>
+                                    <p class="p-text">Built a full-stack application using React and Python that generates custom study schedules and quizzes using NLP. Used by 200+ students on campus.</p>
+                                    <div class="p-tags"><span>React</span><span>Python</span><span>OpenAI API</span></div>
+                                </div>
+                                <div class="project-item">
+                                    <h3>E-commerce Analytics Dashboard</h3>
+                                    <span class="p-date">Oct 2025 - Dec 2025</span>
+                                    <p class="p-text">Created a dashboard visualizing sales data trends. Implemented data cleaning pipelines using Pandas and interactive charts using Chart.js.</p>
+                                    <div class="p-tags"><span>Pandas</span><span>SQL</span><span>JavaScript</span></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="p-section">
+                            <h2>Education</h2>
+                            <div class="edu-item">
+                                <h3>SSN College of Engineering</h3>
+                                <p class="degree">B.E. Computer Science and Engineering</p>
+                                <span class="p-date">2023 - 2027 • CGPA: 8.8</span>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Side Column -->
+                    <div class="p-side">
+                        <section class="p-section">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+                                <h2 style="margin-bottom:0;">Top Skills</h2>
+                                <button class="btn btn-text" id="refresh-profile-btn" style="padding:6px 12px; font-size:13px;">Refresh AI Insights</button>
+                            </div>
+                            <div class="skill-tags" id="profile-skill-tags">
+                                <span class="s-tag verified">Python <i class="ph-fill ph-check-circle"></i></span>
+                                <span class="s-tag verified">SQL <i class="ph-fill ph-check-circle"></i></span>
+                                <span class="s-tag">Machine Learning</span>
+                                <span class="s-tag">React.js</span>
+                                <span class="s-tag">Data Analysis</span>
+                            </div>
+                        </section>
+
+                        <section class="p-section">
+                            <h2>Certifications</h2>
+                            <ul class="clean-list">
+                                <li>
+                                    <strong>Google AI Professional</strong>
+                                    <span>Coursera • Issued Jun 2026</span>
+                                </li>
+                                <li>
+                                    <strong>IBM Generative AI</strong>
+                                    <span>Coursera • Issued Mar 2026</span>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section class="p-section">
+                            <h2>Career Interests</h2>
+                            <ul class="clean-list">
+                                <li>AI / Machine Learning Engineer</li>
+                                <li>Data Analyst</li>
+                                <li>Backend Developer</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIEW: OPPORTUNITIES ================= -->
+            <div class="view-section" id="view-opportunities" style="display: none;">
+                <header class="page-header">
+                    <div class="header-text">
+                        <h1>Discover Opportunities</h1>
+                        <p>Internships, live projects, and programs tailored to your skills.</p>
+                    </div>
+                </header>
+
+                <div class="opp-filters">
+                    <div class="search-wrap flex-grow">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Search by role, company, or skill...">
+                    </div>
+                    <select class="clean-select"><option>Type: Internships</option><option>Type: Full-time</option></select>
+                    <select class="clean-select"><option>Location: Remote</option><option>Location: Chennai</option></select>
+                    <button class="btn btn-outline"><i class="ph ph-sliders-horizontal"></i> Filters</button>
+                    <button class="btn btn-text" id="refresh-opportunities-btn"><i class="ph ph-arrow-clockwise"></i> Refresh AI Insights</button>
+                </div>
+
+                <div class="opp-list-vertical" id="opportunities-list">
+                    <!-- Rendered from POST /api/student-ai/opportunities/match. -->
+                </div>
+            </div>
+
+            <!-- ================= VIEW: SKILL ASSESSMENT ================= -->
+            <div class="view-section" id="view-assessment" style="display: none;">
+                <div class="assessment-container">
+                    <div class="assessment-header">
+                        <h2>Let's understand your skills</h2>
+                        <button class="btn btn-text" onclick="switchView('dashboard')">Save & Exit</button>
+                    </div>
+                    
+                    <div class="assessment-progress">
+                        <div class="step-text">Question 8 of 20 • Backend Development</div>
+                        <div class="progress-track"><div class="progress-fill" style="width: 40%;"></div></div>
+                    </div>
+
+                    <div class="question-card">
+                        <h3 class="question-text">How comfortable are you building and deploying a REST API?</h3>
+                        
+                        <div class="options-list">
+                            <label class="option-item">
+                                <input type="radio" name="q8" value="beginner">
+                                <div class="option-content">
+                                    <span class="o-title">Beginner</span>
+                                    <span class="o-desc">I understand the concept but haven't built one from scratch.</span>
+                                </div>
+                                <div class="radio-indicator"></div>
+                            </label>
+                            
+                            <label class="option-item">
+                                <input type="radio" name="q8" value="intermediate">
+                                <div class="option-content">
+                                    <span class="o-title">Intermediate</span>
+                                    <span class="o-desc">I can build basic endpoints and connect to a database.</span>
+                                </div>
+                                <div class="radio-indicator"></div>
+                            </label>
+
+                            <label class="option-item">
+                                <input type="radio" name="q8" value="advanced">
+                                <div class="option-content">
+                                    <span class="o-title">Advanced</span>
+                                    <span class="o-desc">I handle authentication, middleware, and proper error handling.</span>
+                                </div>
+                                <div class="radio-indicator"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="assessment-footer">
+                        <button class="btn btn-outline">Previous</button>
+                        <button class="btn btn-primary px-32" onclick="alert('Progress saved! Moving to next question.')">Next Question</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!--
+      ============================================================
+      STUDENT PORTAL — BACKEND / SUPABASE CONFIGURATION
+      ============================================================
+      Set the three values below before deploying this page.
+      Do NOT put the Supabase service role key anywhere in this
+      file or in script (2).js — it must only ever live server-side.
+
+      - SUPABASE_URL:      your Supabase project URL
+                           e.g. "https://xxxxxxxx.supabase.co"
+      - SUPABASE_ANON_KEY: your Supabase project's public "anon" key
+                           (safe for client-side use)
+      - API_BASE_URL:      the deployed base URL of this repo's FastAPI
+                           backend, e.g. "https://api.yourdomain.com"
+                           (no trailing slash). This is NOT assumed to
+                           be localhost — you must set it explicitly.
+      ============================================================
+    -->
+    <script>
+        window.APP_CONFIG = {
+            SUPABASE_URL: "https://zkgrifsltwqkqesgewzz.supabase.co",
+            SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprZ3JpZnNsdHdxa3Flc2dld3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwNzIwNjYsImV4cCI6MjEwMzY0ODA2Nn0.CZM6NfvP0SaoCdfsWMBUc_-5k_wATxYSSHXyPyPAL08",
+            API_BASE_URL: "http://localhost:8000"
+        };
+    </script>
+    <!-- Supabase JS client (used only to read the existing Auth session) -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>

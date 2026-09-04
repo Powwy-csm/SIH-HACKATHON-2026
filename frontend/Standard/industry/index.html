@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industry Portal | BridgeX</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header" style="position:relative;">
+                <div class="logo">
+                    <i class="ph ph-buildings"></i>
+                    <span>BridgeX</span>
+                </div>
+                <span class="role-badge">Industry Portal</span>
+                <button class="mobile-close" id="mobileCloseBtn"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <span class="nav-label">MAIN</span>
+                <a href="#" class="nav-item active" id="navDashboard"><i class="ph ph-squares-four"></i> Dashboard</a>
+                <a href="#" class="nav-item" id="navCompanyProfile"><i class="ph ph-buildings"></i> Company Profile</a>
+                <a href="#" class="nav-item"><i class="ph ph-users"></i> Talent / Students</a>
+                <a href="#" class="nav-item"><i class="ph ph-plus-circle"></i> Post Opportunity</a>
+                <a href="#" class="nav-item"><i class="ph ph-briefcase"></i> Opportunities</a>
+                <a href="#" class="nav-item"><i class="ph ph-file-text"></i> Applications</a>
+                
+                <span class="nav-label mt-4">INSIGHTS & COLLAB</span>
+                <a href="#" class="nav-item"><i class="ph ph-trend-up"></i> Skill Demand</a>
+                <a href="#" class="nav-item"><i class="ph ph-calendar-check"></i> Learning & Events</a>
+                <a href="#" class="nav-item"><i class="ph ph-handshake"></i> Collaborations</a>
+                <a href="#" class="nav-item"><i class="ph ph-chart-line-up"></i> Analytics</a>
+                
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item"><i class="ph ph-gear"></i> Settings</a>
+                <a href="#" class="nav-item"><i class="ph ph-question"></i> Help</a>
+                <div class="company-mini-profile">
+                    <div class="avatar bg-blue">ABC</div>
+                    <div class="info">
+                        <span class="name">ABC Tech</span>
+                        <span class="role">Industry Partner</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" id="mobileToggleBtn"><i class="ph ph-list"></i></button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="search-bar">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Search talent, skills, or opportunities...">
+                    </div>
+                    <button class="icon-btn notification-btn">
+                        <i class="ph ph-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <div class="profile-dropdown">
+                        <div class="avatar">
+                            <img src="https://ui-avatars.com/api/?name=ABC+Tech&background=0B1F3A&color=fff" alt="Company Logo">
+                        </div>
+                        <span class="profile-name">ABC Technologies</span>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Main Area -->
+            <main class="dashboard-area">
+                <!-- Welcome & Actions -->
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Good morning, ABC Technologies</h2>
+                        <p class="subtitle">Discover talent, build partnerships, and connect with academia.</p>
+                    </div>
+                    <button class="btn btn-primary" id="openPostModalBtn">
+                        <i class="ph ph-plus"></i> Post Opportunity
+                    </button>
+                </div>
+
+                <!-- Dashboard Tabs (Overview <-> Company Profile) -->
+                <div class="dashboard-tabs">
+                    <button class="dashboard-tab active" data-tab-target="overviewPanel" id="overviewTab">
+                        <i class="ph ph-squares-four"></i> Dashboard Overview
+                    </button>
+                    <button class="dashboard-tab" data-tab-target="profilePanel" id="profileTab">
+                        <i class="ph ph-buildings"></i> Company Profile
+                    </button>
+                </div>
+
+                <section class="tab-panel active" id="overviewPanel" role="tabpanel" aria-labelledby="overviewTab">
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-briefcase"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">12</span>
+                            <span class="stat-label">Open Opportunities</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +3 this month</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-files"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">248</span>
+                            <span class="stat-label">Total Applications</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +18% this month</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-user-check"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">31</span>
+                            <span class="stat-label">Shortlisted Candidates</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +7 this week</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-handshake"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">8</span>
+                            <span class="stat-label">Active Collaborations</span>
+                            <span class="stat-trend neutral"><i class="ph ph-minus"></i> 3 new this month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complex Layout Grid -->
+                <div class="dashboard-layout">
+                    <!-- Left Column (Wider) -->
+                    <div class="col-main">
+                        <!-- Top Talent Matches -->
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Top Talent Matches</h3>
+                                    <p class="subtitle">Students whose skills closely match your current requirements.</p>
+                                </div>
+                                <button class="btn-text">View All</button>
+                            </div>
+                            <div class="talent-list">
+                                <!-- Candidate 1 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Aarav+Sharma&background=E2E8F0&color=172033" alt="Aarav" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Aarav Sharma</h4>
+                                            <p class="college">SSN College of Engineering • B.E. Computer Science</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">Python</span>
+                                                <span class="skill-pill">Machine Learning</span>
+                                                <span class="skill-pill">SQL</span>
+                                                <span class="skill-pill">React</span>
+                                            </div>
+                                            <!-- The missing skills visual indicator -->
+<div class="skill-gap text-danger mt-8" style="font-size: 12.5px; font-weight: 600;">
+    <i class="ph-fill ph-warning-circle"></i> Gap: Docker, Kubernetes
+</div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>92%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill excellent" style="width: 92%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">4 Projects • 2 Certifications</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Candidate 2 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Priya+Nair&background=E2E8F0&color=172033" alt="Priya" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Priya Nair</h4>
+                                            <p class="college">Madras Institute of Technology • B.Tech IT</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">React</span>
+                                                <span class="skill-pill">Node.js</span>
+                                                <span class="skill-pill">AWS</span>
+                                            </div>
+                                            <!-- The missing skills visual indicator -->
+<div class="skill-gap text-danger mt-8" style="font-size: 12.5px; font-weight: 600;">
+    <i class="ph-fill ph-warning-circle"></i> Gap: Docker, Kubernetes
+</div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>88%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill good" style="width: 88%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">6 Projects • 1 Certification</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Candidate 3 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Rahul+Verma&background=E2E8F0&color=172033" alt="Rahul" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Rahul Verma</h4>
+                                            <p class="college">PSG College of Technology • Data Science</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">Python</span>
+                                                <span class="skill-pill">SQL</span>
+                                                <span class="skill-pill">PowerBI</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>84%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill good" style="width: 84%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">3 Projects • 3 Certifications</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Active Opportunities -->
+                        <section class="card">
+                            <div class="card-header">
+                                <h3>Active Opportunities</h3>
+                                <button class="btn-text">View All</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Opportunity</th>
+                                            <th>Type</th>
+                                            <th>Applications</th>
+                                            <th>Deadline</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="font-medium">AI Engineer Intern</td>
+                                            <td><span class="badge badge-gray">Internship</span></td>
+                                            <td>48</td>
+                                            <td>Sep 15, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-medium">Data Analyst</td>
+                                            <td><span class="badge badge-gray">Internship</span></td>
+                                            <td>32</td>
+                                            <td>Sep 20, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-medium">Frontend Developer</td>
+                                            <td><span class="badge badge-blue">Entry-level</span></td>
+                                            <td>61</td>
+                                            <td>Sep 25, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <!-- Application Overview Chart -->
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Application Overview</h3>
+                                    <p class="subtitle">Candidate progression over the last 6 months.</p>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="applicationsChart"></canvas>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Right Column (Narrower) -->
+                    <div class="col-side">
+                        <!-- Company Profile Compact -->
+                        <section class="card profile-card">
+                            <div class="profile-header-compact">
+                                <div class="avatar-xl">ABC</div>
+                                <div class="verified-badge" title="Verified Industry Partner"><i class="ph-fill ph-seal-check"></i></div>
+                            </div>
+                            <div class="profile-body-compact">
+                                <h3>ABC Technologies</h3>
+                                <p class="industry-type">Technology • Software</p>
+                                <div class="profile-metrics">
+                                    <div class="metric"><span class="val">12</span><span class="lbl">Opportunities</span></div>
+                                    <div class="metric"><span class="val">8</span><span class="lbl">Collaborations</span></div>
+                                    <div class="metric"><span class="val">46</span><span class="lbl">Hired</span></div>
+                                </div>
+                                <button class="btn btn-outline w-100" id="manageProfileBtn">Manage Company Profile</button>
+                            </div>
+                        </section>
+
+                        <!-- Industry Skill Demand -->
+                        <section class="card">
+                            <div class="card-header border-none">
+                                <div>
+                                    <h3>Industry Skill Demand</h3>
+                                    <p class="subtitle">Skills most frequently requested in your sector.</p>
+                                </div>
+                            </div>
+                            <div class="skill-demand-list">
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Python</span> <span>86%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 86%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>SQL</span> <span>78%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 78%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Cloud / AWS</span> <span>71%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 71%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>React</span> <span>64%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 64%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Machine Learning</span> <span>61%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 61%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Docker</span> <span>48%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 48%;"></div></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Academia Collaboration -->
+                        <section class="card collab-card">
+                            <div class="card-header">
+                                <h3>Academia Collaboration</h3>
+                                <span class="badge badge-blue">8 Active</span>
+                            </div>
+                            <div class="collab-events">
+                                <h4 class="section-micro-title">Upcoming</h4>
+                                <div class="event-item">
+                                    <div class="event-date">
+                                        <span class="day">24</span>
+                                        <span class="month">Aug</span>
+                                    </div>
+                                    <div class="event-details">
+                                        <h5>AI &amp; Cloud Workshop</h5>
+                                        <p>SSN College of Engineering</p>
+                                    </div>
+                                </div>
+                                <div class="event-item">
+                                    <div class="event-date">
+                                        <span class="day">02</span>
+                                        <span class="month">Sep</span>
+                                    </div>
+                                    <div class="event-details">
+                                        <h5>Industry Project Challenge</h5>
+                                        <p>ABC Tech × CSE Department</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collab-actions">
+                                <button class="btn btn-outline">View All</button>
+                                <button class="btn btn-primary">Create Collab</button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- Recent Activity: Full-Width Section (Brought Down) -->
+                <section class="card recent-activity-section">
+                    <div class="card-header border-none">
+                        <div>
+                            <h3>Recent Activity</h3>
+                            <p class="subtitle">Live platform updates across applications, shortlists, and collaboration requests.</p>
+                        </div>
+                        <span class="badge badge-blue">Live Stream</span>
+                    </div>
+                    <div class="recent-activity-grid">
+                        <div class="activity-card">
+                            <div class="timeline-icon bg-light-blue text-accent"><i class="ph ph-files"></i></div>
+                            <div class="timeline-content">
+                                <p><strong>5 new applications</strong> received for AI Engineer Intern.</p>
+                                <span class="time">2 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-card">
+                            <div class="timeline-icon bg-light-success text-success"><i class="ph ph-user-check"></i></div>
+                            <div class="timeline-content">
+                                <p><strong>Aarav Sharma</strong> was shortlisted for the ML Internship role.</p>
+                                <span class="time">4 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-card">
+                            <div class="timeline-icon bg-light-blue text-accent"><i class="ph ph-users"></i></div>
+                            <div class="timeline-content">
+                                <p><strong>3 students</strong> registered for your Python workshop.</p>
+                                <span class="time">Yesterday</span>
+                            </div>
+                        </div>
+                        <div class="activity-card">
+                            <div class="timeline-icon bg-light-warning text-warning"><i class="ph ph-handshake"></i></div>
+                            <div class="timeline-content">
+                                <p>New collaboration request from <strong>SSN College</strong>.</p>
+                                <span class="time">Yesterday</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                </section> <!-- Closing overviewPanel -->
+
+                <!-- =========================================================
+                     TAB PANEL: COMPANY PROFILE (Rich, Structured, LinkedIn Style)
+                     ========================================================= -->
+                <section class="tab-panel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" style="display:none;">
+                    <!-- Profile Hero Card -->
+                    <section class="card profile-hero-card">
+                        <div class="profile-hero-banner"></div>
+                        <div class="profile-hero-content">
+                            <div class="profile-hero-header">
+                                <div class="profile-avatar">
+                                    ABC
+                                    <div class="verified-badge" title="Verified Industry Partner"><i class="ph-fill ph-seal-check"></i></div>
+                                </div>
+                                <div class="profile-details">
+                                    <div class="profile-title">
+                                        <h2>ABC Technologies</h2>
+                                        <!-- </h5>Verified Partner</h5> -->   
+                                    </div>
+                                    <p class="profile-meta">
+                                        <span><i class="ph ph-buildings"></i> Enterprise Software &amp; Applied Cloud AI</span>
+                                        <span>•</span>
+                                        <span><i class="ph ph-map-pin"></i> Bengaluru, Karnataka, India</span>
+                                        <span>•</span>
+                                        <span><i class="ph ph-globe"></i> <a href="https://abctechnologies.demo" target="_blank">https://abctechnologies.demo</a></span>
+                                    </p>
+                                </div>
+                                <div class="profile-actions">
+                                    <button class="btn btn-primary" onclick="alert('Opening Profile Editor...')"><i class="ph ph-pencil-simple"></i> Edit Profile</button>
+                                    <button class="btn btn-outline" onclick="alert('Public URL copied!')"><i class="ph ph-share-network"></i> Share</button>
+                                </div>
+                            </div>
+
+                            <!-- Institutional / Company KPI Bar -->
+                            <div class="profile-stats-bar">
+                                <div class="p-stat">
+                                    <span class="val">12</span>
+                                    <span class="lbl">Open Opportunities</span>
+                                </div>
+                                <div class="p-stat">
+                                    <span class="val">8</span>
+                                    <span class="lbl">University MoUs</span>
+                                </div>
+                                <div class="p-stat">
+                                    <span class="val">46</span>
+                                    <span class="lbl">Students Hired</span>
+                                </div>
+                                <div class="p-stat">
+                                    <span class="val text-success">4.8★</span>
+                                    <span class="lbl">Campus Rating</span>
+                                </div>
+                                <div class="p-stat">
+                                    <span class="val text-blue">₹18.5 LPA</span>
+                                    <span class="lbl">Avg CTC Offered</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Detailed Profile Grid Layout -->
+                    <div class="profile-grid">
+                        <!-- Main Column -->
+                        <div class="col-main">
+                            <!-- About Company -->
+                            <section class="card p-28">
+                                <h3 class="section-title"><i class="ph ph-info text-accent"></i> About ABC Technologies</h3>
+                                <p class="text-content mt-12">ABC Technologies is an enterprise innovation leader building high-throughput cloud infrastructure and generative AI fine-tuning platforms for over 500 enterprise customers globally. Through our structured campus outreach program, we collaborate directly with top engineering institutions to discover outstanding student developers, sponsor capstone labs, and host live competitive coding challenges.</p>
+                                
+                                <h4 class="font-bold mt-24 mb-12" style="font-size: 14px;">Key Focus Areas &amp; Specializations</h4>
+                                <div class="tags">
+                                    <span class="tag">Generative AI &amp; LLM Orchestration</span>
+                                    <span class="tag">Distributed Cloud Architecture</span>
+                                    <span class="tag">Kubernetes &amp; SRE Systems</span>
+                                    <span class="tag">Big Data &amp; Real-Time Analytics</span>
+                                    <span class="tag">Enterprise Cyber Security</span>
+                                </div>
+                            </section>
+
+                            <!-- Hiring Tech Stack & Core Domains -->
+                            <section class="card p-28">
+                                <h3 class="section-title"><i class="ph ph-code text-accent"></i> Primary Hiring Domains &amp; Tech Stacks</h3>
+                                <p class="subtitle mb-16">Verified student skills matched against our engineering talent requirements.</p>
+                                
+                                <div class="skill-focus-grid">
+                                    <div class="skill-focus-item">
+                                        <div class="skill-focus-header">
+                                            <strong>Python &amp; Machine Learning (PyTorch / TensorFlow)</strong>
+                                            <span class="badge badge-blue">High Priority</span>
+                                        </div>
+                                        <p>Seeking students with hands-on experience in LLM fine-tuning, embeddings, and mathematical foundations.</p>
+                                    </div>
+                                    <div class="skill-focus-item">
+                                        <div class="skill-focus-header">
+                                            <strong>Cloud &amp; DevOps (AWS, Docker, Kubernetes)</strong>
+                                            <span class="badge badge-blue">High Priority</span>
+                                        </div>
+                                        <p>Seeking candidates proficient in container orchestration, CI/CD automation, and infrastructure as code.</p>
+                                    </div>
+                                    <div class="skill-focus-item">
+                                        <div class="skill-focus-header">
+                                            <strong>Full-Stack &amp; Web Platforms (React, Node.js, TypeScript)</strong>
+                                            <span class="badge badge-gray">Active</span>
+                                        </div>
+                                        <p>Modern frontend development with high performance UI/UX systems and microservices integration.</p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Active University Partnerships & MoUs -->
+                            <section class="card p-28">
+                                <div class="card-header border-none p-0 mb-16">
+                                    <div>
+                                        <h3 class="section-title"><i class="ph ph-handshake text-accent"></i> Active Campus MoUs &amp; Collabs</h3>
+                                        <p class="subtitle">Institutions where ABC Technologies actively runs hiring and research tracks.</p>
+                                    </div>
+                                    <button class="btn btn-outline" onclick="alert('Initiating new campus MoU request...')"><i class="ph ph-plus"></i> Partner with College</button>
+                                </div>
+
+                                <div class="mou-partner-list">
+                                    <div class="mou-card-item">
+                                        <div class="mou-logo-box">SSN</div>
+                                        <div class="mou-card-content">
+                                            <div class="mou-card-top">
+                                                <h5>SSN College of Engineering</h5>
+                                                <span class="badge badge-success">Active MoU (2024–2027)</span>
+                                            </div>
+                                            <p class="text-muted" style="font-size: 13px;">Joint GenAI &amp; Data Intelligence CoE Lab • 120 students enrolled in workshop • 14 campus internship offers.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mou-card-item">
+                                        <div class="mou-logo-box" style="background:#E0F2FE; color:#0284C7;">MIT</div>
+                                        <div class="mou-card-content">
+                                            <div class="mou-card-top">
+                                                <h5>Madras Institute of Technology</h5>
+                                                <span class="badge badge-success">Active MoU (2023–2026)</span>
+                                            </div>
+                                            <p class="text-muted" style="font-size: 13px;">Annual Capstone Hackathon Title Sponsor • 8 live industry projects • 12 shortlisted candidates.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mou-card-item">
+                                        <div class="mou-logo-box" style="background:#F3E8FF; color:#7C3AED;">PSG</div>
+                                        <div class="mou-card-content">
+                                            <div class="mou-card-top">
+                                                <h5>PSG College of Technology</h5>
+                                                <span class="badge badge-success">Active MoU (2025–2028)</span>
+                                            </div>
+                                            <p class="text-muted" style="font-size: 13px;">Faculty Sabbatical Program • Applied ML Research Grant ₹8.5 Lakhs co-funded.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Transparent Recruitment Workflow -->
+                            <section class="card p-28">
+                                <h3 class="section-title"><i class="ph ph-steps text-accent"></i> Campus Recruitment Workflow</h3>
+                                <p class="subtitle mb-20">Transparent 4-stage evaluation process for candidate selection.</p>
+                                <div class="workflow-steps-grid">
+                                    <div class="workflow-step">
+                                        <div class="step-num">1</div>
+                                        <h5>Skill Assessment</h5>
+                                        <p>BridgeX verified aptitude &amp; coding score verification.</p>
+                                    </div>
+                                    <div class="workflow-step">
+                                        <div class="step-num">2</div>
+                                        <h5>Hackathon / Task</h5>
+                                        <p>Hands-on 48hr domain project or coding problem.</p>
+                                    </div>
+                                    <div class="workflow-step">
+                                        <div class="step-num">3</div>
+                                        <h5>Technical Interview</h5>
+                                        <p>1-on-1 architecture &amp; problem solving discussion.</p>
+                                    </div>
+                                    <div class="workflow-step">
+                                        <div class="step-num">4</div>
+                                        <h5>Offer &amp; Onboarding</h5>
+                                        <p>Final selection, stipend confirmation &amp; mentor assign.</p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Side Column -->
+                        <div class="col-side">
+                            <!-- Recruiter Contact Card -->
+                            <section class="card p-24">
+                                <h3 class="section-title"><i class="ph ph-user-circle text-accent"></i> Campus Talent Acquisition</h3>
+                                <div class="recruiter-profile mt-16">
+                                    <img src="https://ui-avatars.com/api/?name=Vikram+Mehta&background=EFF6FF&color=1D4ED8&bold=true" alt="Vikram Mehta" class="avatar-lg">
+                                    <div>
+                                        <h4 class="font-bold">Vikram Mehta</h4>
+                                        <p class="text-muted" style="font-size:12.5px;">Head • Campus Relations &amp; Hiring</p>
+                                    </div>
+                                </div>
+                                <ul class="contact-list mt-16">
+                                    <li><i class="ph ph-envelope-simple"></i> campus.hiring@abctech.demo</li>
+                                    <li><i class="ph ph-phone"></i> +91 (80) 4920-1100 / Ext 402</li>
+                                    <li><i class="ph ph-map-pin"></i> Electronic City Phase 1, Bengaluru 560100</li>
+                                </ul>
+                                <button class="btn btn-outline w-100 mt-16" onclick="alert('Message sent to Campus Relations Lead!')">
+                                    <i class="ph ph-chat-circle-dots"></i> Message Recruiter
+                                </button>
+                            </section>
+
+                            <!-- Profile Completion Status -->
+                            <section class="card p-24">
+                                <h3 class="section-title"><i class="ph ph-chart-donut text-accent"></i> Profile Completion</h3>
+                                <div class="completion-overview mt-16">
+                                    <div class="completion-score">92%</div>
+                                    <div>
+                                        <h4 class="font-bold">High Visibility</h4>
+                                        <p class="text-muted" style="font-size: 13px;">Your company profile is featured at the top of partner campus boards.</p>
+                                    </div>
+                                </div>
+                                <div class="progress-bar large mt-8"><div class="progress-fill" style="width: 92%;"></div></div>
+                                
+                                <ul class="completion-checklist mt-16">
+                                    <li><i class="ph-fill ph-check-circle text-success"></i> Corporate Overview Completed</li>
+                                    <li><i class="ph-fill ph-check-circle text-success"></i> Verified Partner Compliance</li>
+                                    <li><i class="ph-fill ph-check-circle text-success"></i> Key Tech Stacks Tagged</li>
+                                    <li><i class="ph-fill ph-circle text-muted"></i> Add Campus Life Video (Optional)</li>
+                                </ul>
+                            </section>
+
+                            <!-- Downloads & Quick Links -->
+                            <section class="card p-24">
+                                <h3 class="section-title"><i class="ph ph-file-arrow-down text-accent"></i> Documents &amp; Policy</h3>
+                                <div class="profile-actions-list p-0 mt-16">
+                                    <button class="profile-action-item" onclick="alert('Downloading Campus Hiring Policy 2026-27...')">
+                                        <span><i class="ph ph-file-pdf text-danger"></i> Campus Hiring Policy 2026</span>
+                                        <i class="ph ph-download-simple"></i>
+                                    </button>
+                                    <button class="profile-action-item" onclick="alert('Downloading Internship Guidelines...')">
+                                        <span><i class="ph ph-file-text text-blue"></i> Internship Guidelines</span>
+                                        <i class="ph ph-download-simple"></i>
+                                    </button>
+                                    <button class="profile-action-item" onclick="alert('Opening MoU Collaboration Form...')">
+                                        <span><i class="ph ph-handshake text-success"></i> MoU Template Proposal</span>
+                                        <i class="ph ph-arrow-square-out"></i>
+                                    </button>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Post Opportunity Modal -->
+    <div class="modal-overlay" id="postModalOverlay">
+        <div class="modal-container modal-wide">
+            <div class="modal-header">
+                <div>
+                    <h2>Post New Opportunity</h2>
+                    <p class="subtitle" style="margin-top:4px; font-size:13px;">Fill in the details below to publish a new role, internship, or challenge to BridgeX partner campuses.</p>
+                </div>
+                <button class="icon-btn close-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="postOpportunityForm">
+                    <div class="form-grid">
+                        <!-- Opportunity Type -->
+                        <div class="form-group span-2">
+                            <label>Opportunity Type</label>
+                            <div class="radio-group">
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="internship" checked>
+                                    <span class="radio-content">
+                                        <i class="ph ph-student"></i>
+                                        Internship
+                                    </span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="fulltime">
+                                    <span class="radio-content">
+                                        <i class="ph ph-briefcase"></i>
+                                        Full-time Job
+                                    </span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="apprenticeship">
+                                    <span class="radio-content">
+                                        <i class="ph ph-graduation-cap"></i>
+                                        Apprenticeship
+                                    </span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="project">
+                                    <span class="radio-content">
+                                        <i class="ph ph-git-branch"></i>
+                                        Live Project
+                                    </span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="research">
+                                    <span class="radio-content">
+                                        <i class="ph ph-flask"></i>
+                                        Research
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Basic Info -->
+                        <div class="form-group span-2" style="margin-top:8px;">
+                            <p class="form-section-header">Basic Information</p>
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label for="title">Role / Opportunity Title</label>
+                            <input type="text" id="title" placeholder="e.g. Machine Learning Engineer Intern" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="department">Department / Team</label>
+                            <input type="text" id="department" placeholder="e.g. AI Research, Cloud Engineering" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="openings">Number of Openings</label>
+                            <input type="number" id="openings" placeholder="e.g. 5" min="1" class="form-control">
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label for="description">Job Description &amp; Responsibilities</label>
+                            <textarea id="description" rows="3" placeholder="Describe the role, day-to-day responsibilities, and what the candidate will build or achieve..." class="form-control"></textarea>
+                        </div>
+
+                        <!-- Requirements -->
+                        <div class="form-group span-2" style="margin-top:8px;">
+                            <p class="form-section-header">Requirements</p>
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label>Required Skills <span style="font-size:11px; color:var(--text-muted);">— type and press Enter</span></label>
+                            <div class="skills-input-wrap" id="skillTagsWrap">
+                                <span class="skill-tag">Python <button type="button" onclick="removeSkillTag(this)">×</button></span>
+                                <span class="skill-tag">Machine Learning <button type="button" onclick="removeSkillTag(this)">×</button></span>
+                                <span class="skill-tag">SQL <button type="button" onclick="removeSkillTag(this)">×</button></span>
+                                <input type="text" id="skillInput" placeholder="Add a skill..." style="border:none; outline:none; flex:1; min-width:120px; font-size:13px; background:transparent;" onkeydown="addSkillTag(event)">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="qualification">Minimum Qualification</label>
+                            <select id="qualification" class="form-control">
+                                <option>B.E. / B.Tech</option>
+                                <option>M.E. / M.Tech</option>
+                                <option>B.Sc / M.Sc</option>
+                                <option>MBA / Management</option>
+                                <option>Any Degree</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="experience">Experience Level</label>
+                            <select id="experience" class="form-control">
+                                <option>Fresher / 0 Years</option>
+                                <option>0–1 Year</option>
+                                <option>1–3 Years</option>
+                                <option>3–5 Years</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cgpa">Minimum CGPA (optional)</label>
+                            <input type="number" id="cgpa" placeholder="e.g. 7.5" step="0.1" min="0" max="10" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="target_dept">Target Departments</label>
+                            <select id="target_dept" class="form-control">
+                                <option>All Departments</option>
+                                <option>Computer Science & Engineering</option>
+                                <option>Information Technology</option>
+                                <option>Electronics & Communication</option>
+                                <option>Mechanical / Civil</option>
+                            </select>
+                        </div>
+
+                        <!-- Logistics -->
+                        <div class="form-group span-2" style="margin-top:8px;">
+                            <p class="form-section-header">Logistics &amp; Compensation</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" placeholder="e.g. Bengaluru / Remote" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="work_mode">Work Mode</label>
+                            <select id="work_mode" class="form-control">
+                                <option>On-site</option>
+                                <option>Remote</option>
+                                <option>Hybrid</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="duration">Duration / Notice Period</label>
+                            <input type="text" id="duration" placeholder="e.g. 6 Months / Full-time" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="stipend">Stipend / Salary (CTC)</label>
+                            <input type="text" id="stipend" placeholder="e.g. ₹20,000/month or ₹8–12 LPA" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="deadline">Application Deadline</label>
+                            <input type="date" id="deadline" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="start_date">Expected Start Date</label>
+                            <input type="month" id="start_date" class="form-control">
+                        </div>
+
+                        <!-- Perks -->
+                        <div class="form-group span-2" style="margin-top:8px;">
+                            <p class="form-section-header">Perks &amp; Benefits <span style="font-size:11px; font-weight:400; color:var(--text-muted); text-transform:none; letter-spacing:0;">— click to select</span></p>
+                        </div>
+                        <div class="form-group span-2">
+                            <div class="perk-grid">
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-certificate"></i> Pre-Placement Offer</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-medal"></i> Certificate of Excellence</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-device-mobile"></i> Laptop Provided</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-airplane"></i> Relocation Support</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-chalkboard-teacher"></i> Mentorship Program</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-activity"></i> Health Insurance</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-food"></i> Meal Allowance</span>
+                                <span class="perk-chip" onclick="this.classList.toggle('selected')"><i class="ph ph-trend-up"></i> Fast-Track Full-Time Conversion</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-modal">Cancel</button>
+                <button class="btn btn-outline" onclick="alert('Saved as draft!')"><i class="ph ph-floppy-disk"></i> Save Draft</button>
+                <button class="btn btn-primary" onclick="alert('Publishing opportunity to matching engine...')">
+                    <i class="ph ph-paper-plane-tilt"></i> Publish Opportunity
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=3"></script>
+    <script>
+        // Skill tag add/remove helpers
+        function addSkillTag(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const input = document.getElementById('skillInput'); // Ensure this ID matches yours
+                const val = input.value.trim();
+                if (!val) return;
+
+        // --- DEDUPE CHECK: Intercept existing tags ---
+        // Replace 'skillContainer' with the actual ID/class of your tag wrapper
+                const container = document.getElementById('skillContainer'); 
+                const existingTags = Array.from(container.querySelectorAll('.tag'))
+                    .map(t => t.textContent.replace('×', '').trim().toLowerCase());
+        
+                if (existingTags.includes(val.toLowerCase())) {
+                    input.value = ''; // Clear the input silently and stop
+                    return; 
+                }
+                const tag = document.createElement('span');
+                tag.className = 'skill-tag';
+                tag.innerHTML = `${val} <button type="button" onclick="removeSkillTag(this)">×</button>`;
+                input.parentNode.insertBefore(tag, input);
+                input.value = '';
+            }
+        }
+        function removeSkillTag(btn) {
+            btn.parentElement.remove();
+        }
+    </script>
+</body>
+</html>
+

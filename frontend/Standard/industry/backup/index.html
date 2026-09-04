@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industry Portal | BridgeX</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph ph-buildings"></i>
+                    <span>BridgeX</span>
+                </div>
+                <button class="mobile-close" id="mobileCloseBtn"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <span class="nav-label">MAIN</span>
+                <a href="#" class="nav-item active"><i class="ph ph-squares-four"></i> Dashboard</a>
+                <a href="#" class="nav-item"><i class="ph ph-users"></i> Talent / Students</a>
+                <a href="#" class="nav-item"><i class="ph ph-plus-circle"></i> Post Opportunity</a>
+                <a href="#" class="nav-item"><i class="ph ph-briefcase"></i> Opportunities</a>
+                <a href="#" class="nav-item"><i class="ph ph-file-text"></i> Applications</a>
+                
+                <span class="nav-label mt-4">INSIGHTS & COLLAB</span>
+                <a href="#" class="nav-item"><i class="ph ph-trend-up"></i> Skill Demand</a>
+                <a href="#" class="nav-item"><i class="ph ph-calendar-check"></i> Learning & Events</a>
+                <a href="#" class="nav-item"><i class="ph ph-handshake"></i> Collaborations</a>
+                <a href="#" class="nav-item"><i class="ph ph-chart-line-up"></i> Analytics</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item"><i class="ph ph-gear"></i> Settings</a>
+                <a href="#" class="nav-item"><i class="ph ph-question"></i> Help</a>
+                <div class="company-mini-profile">
+                    <div class="avatar bg-blue">ABC</div>
+                    <div class="info">
+                        <span class="name">ABC Tech</span>
+                        <span class="role">Industry Partner</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" id="mobileToggleBtn"><i class="ph ph-list"></i></button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="search-bar">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Search talent, skills, or opportunities...">
+                    </div>
+                    <button class="icon-btn notification-btn">
+                        <i class="ph ph-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <div class="profile-dropdown">
+                        <div class="avatar">
+                            <img src="https://ui-avatars.com/api/?name=ABC+Tech&background=0B1F3A&color=fff" alt="Company Logo">
+                        </div>
+                        <span class="profile-name">ABC Technologies</span>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Main Area -->
+            <main class="dashboard-area">
+                <!-- Welcome & Actions -->
+                <div class="dashboard-header">
+                    <div>
+                        <h2>Good morning, ABC Technologies</h2>
+                        <p class="subtitle">Discover talent, build partnerships, and connect with academia.</p>
+                    </div>
+                    <button class="btn btn-primary" id="openPostModalBtn">
+                        <i class="ph ph-plus"></i> Post Opportunity
+                    </button>
+                </div>
+
+                <div class="dashboard-tabs" role="tablist" aria-label="Dashboard sections">
+                    <button class="dashboard-tab active" type="button" role="tab" id="overviewTab" aria-selected="true" aria-controls="overviewPanel" data-tab-target="overviewPanel">
+                        <i class="ph ph-squares-four"></i>
+                        <span>Overview</span>
+                    </button>
+                    <button class="dashboard-tab" type="button" role="tab" id="profileTab" aria-selected="false" aria-controls="profilePanel" data-tab-target="profilePanel">
+                        <i class="ph ph-buildings"></i>
+                        <span>Company Profile</span>
+                    </button>
+                </div>
+
+                <section class="tab-panel active" id="overviewPanel" role="tabpanel" aria-labelledby="overviewTab">
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-briefcase"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">12</span>
+                            <span class="stat-label">Open Opportunities</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +3 this month</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-files"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">248</span>
+                            <span class="stat-label">Total Applications</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +18% this month</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-user-check"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">31</span>
+                            <span class="stat-label">Shortlisted Candidates</span>
+                            <span class="stat-trend success"><i class="ph ph-arrow-up-right"></i> +7 this week</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="ph ph-handshake"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">8</span>
+                            <span class="stat-label">Active Collaborations</span>
+                            <span class="stat-trend neutral"><i class="ph ph-minus"></i> 3 new this month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complex Layout Grid -->
+                <div class="dashboard-layout">
+                    <!-- Left Column (Wider) -->
+                    <div class="col-main">
+                        <!-- Top Talent Matches -->
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Top Talent Matches</h3>
+                                    <p class="subtitle">Students whose skills closely match your current requirements.</p>
+                                </div>
+                                <button class="btn-text">View All</button>
+                            </div>
+                            <div class="talent-list">
+                                <!-- Candidate 1 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Aarav+Sharma&background=E2E8F0&color=172033" alt="Aarav" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Aarav Sharma</h4>
+                                            <p class="college">SSN College of Engineering • B.E. Computer Science</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">Python</span>
+                                                <span class="skill-pill">Machine Learning</span>
+                                                <span class="skill-pill">SQL</span>
+                                                <span class="skill-pill">React</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>92%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill excellent" style="width: 92%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">4 Projects • 2 Certifications</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Candidate 2 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Priya+Nair&background=E2E8F0&color=172033" alt="Priya" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Priya Nair</h4>
+                                            <p class="college">Madras Institute of Technology • B.Tech IT</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">React</span>
+                                                <span class="skill-pill">Node.js</span>
+                                                <span class="skill-pill">AWS</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>88%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill good" style="width: 88%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">6 Projects • 1 Certification</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Candidate 3 -->
+                                <div class="talent-card">
+                                    <div class="talent-basic">
+                                        <img src="https://ui-avatars.com/api/?name=Rahul+Verma&background=E2E8F0&color=172033" alt="Rahul" class="avatar-lg">
+                                        <div class="talent-info">
+                                            <h4>Rahul Verma</h4>
+                                            <p class="college">PSG College of Technology • Data Science</p>
+                                            <div class="skills-wrap">
+                                                <span class="skill-pill">Python</span>
+                                                <span class="skill-pill">SQL</span>
+                                                <span class="skill-pill">PowerBI</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="talent-meta">
+                                        <div class="match-score">
+                                            <div class="score-text"><span>84%</span> Match</div>
+                                            <div class="progress-bar"><div class="progress-fill good" style="width: 84%;"></div></div>
+                                        </div>
+                                        <div class="talent-stats">3 Projects • 3 Certifications</div>
+                                        <div class="talent-actions">
+                                            <button class="btn btn-outline">View Profile</button>
+                                            <button class="btn btn-primary btn-shortlist">Shortlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Active Opportunities -->
+                        <section class="card">
+                            <div class="card-header">
+                                <h3>Active Opportunities</h3>
+                                <button class="btn-text">View All</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Opportunity</th>
+                                            <th>Type</th>
+                                            <th>Applications</th>
+                                            <th>Deadline</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="font-medium">AI Engineer Intern</td>
+                                            <td><span class="badge badge-gray">Internship</span></td>
+                                            <td>48</td>
+                                            <td>Sep 15, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-medium">Data Analyst</td>
+                                            <td><span class="badge badge-gray">Internship</span></td>
+                                            <td>32</td>
+                                            <td>Sep 20, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-medium">Frontend Developer</td>
+                                            <td><span class="badge badge-blue">Entry-level</span></td>
+                                            <td>61</td>
+                                            <td>Sep 25, 2026</td>
+                                            <td><span class="badge badge-success">Active</span></td>
+                                            <td><button class="btn-link">Manage</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <!-- Application Overview Chart -->
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Application Overview</h3>
+                                    <p class="subtitle">Candidate progression over the last 6 months.</p>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="applicationsChart"></canvas>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Right Column (Narrower) -->
+                    <div class="col-side">
+                        <!-- Company Profile Compact -->
+                        <section class="card profile-card">
+                            <div class="profile-header-compact">
+                                <div class="avatar-xl">ABC</div>
+                                <div class="verified-badge" title="Verified Industry Partner"><i class="ph-fill ph-seal-check"></i></div>
+                            </div>
+                            <div class="profile-body-compact">
+                                <h3>ABC Technologies</h3>
+                                <p class="industry-type">Technology • Software</p>
+                                <div class="profile-metrics">
+                                    <div class="metric"><span class="val">12</span><span class="lbl">Opportunities</span></div>
+                                    <div class="metric"><span class="val">8</span><span class="lbl">Collaborations</span></div>
+                                    <div class="metric"><span class="val">46</span><span class="lbl">Hired</span></div>
+                                </div>
+                                <button class="btn btn-outline w-100">Manage Company Profile</button>
+                            </div>
+                        </section>
+
+                        <!-- Industry Skill Demand -->
+                        <section class="card">
+                            <div class="card-header border-none">
+                                <div>
+                                    <h3>Industry Skill Demand</h3>
+                                    <p class="subtitle">Skills most frequently requested.</p>
+                                </div>
+                            </div>
+                            <div class="skill-demand-list">
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Python</span> <span>86%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 86%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>SQL</span> <span>78%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 78%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Cloud / AWS</span> <span>71%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 71%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>React</span> <span>64%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 64%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Machine Learning</span> <span>61%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 61%;"></div></div>
+                                </div>
+                                <div class="demand-item">
+                                    <div class="demand-label"><span>Docker</span> <span>48%</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 48%;"></div></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Academia Collaboration -->
+                        <section class="card collab-card">
+                            <div class="card-header">
+                                <h3>Academia Collaboration</h3>
+                                <span class="badge badge-blue">8 Active</span>
+                            </div>
+                            <div class="collab-events">
+                                <h4 class="section-micro-title">Upcoming</h4>
+                                <div class="event-item">
+                                    <div class="event-date">
+                                        <span class="day">24</span>
+                                        <span class="month">Aug</span>
+                                    </div>
+                                    <div class="event-details">
+                                        <h5>AI & Cloud Workshop</h5>
+                                        <p>SSN College of Engineering</p>
+                                    </div>
+                                </div>
+                                <div class="event-item">
+                                    <div class="event-date">
+                                        <span class="day">02</span>
+                                        <span class="month">Sep</span>
+                                    </div>
+                                    <div class="event-details">
+                                        <h5>Industry Project Challenge</h5>
+                                        <p>ABC Tech × CSE Department</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collab-actions">
+                                <button class="btn btn-outline">View All</button>
+                                <button class="btn btn-primary">Create Collab</button>
+                            </div>
+                        </section>
+
+                        <!-- Recent Activity -->
+                        <section class="card">
+                            <div class="card-header border-none">
+                                <h3>Recent Activity</h3>
+                            </div>
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-icon bg-light-blue text-accent"><i class="ph ph-files"></i></div>
+                                    <div class="timeline-content">
+                                        <p><strong>5 new applications</strong> received for AI Engineer Intern.</p>
+                                        <span class="time">2 hours ago</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-icon bg-light-success text-success"><i class="ph ph-user-check"></i></div>
+                                    <div class="timeline-content">
+                                        <p><strong>Aarav Sharma</strong> was shortlisted.</p>
+                                        <span class="time">4 hours ago</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-icon bg-light-blue text-accent"><i class="ph ph-users"></i></div>
+                                    <div class="timeline-content">
+                                        <p><strong>3 students</strong> registered for your Python workshop.</p>
+                                        <span class="time">Yesterday</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-icon bg-light-warning text-warning"><i class="ph ph-handshake"></i></div>
+                                    <div class="timeline-content">
+                                        <p>New collaboration request from <strong>SSN College</strong>.</p>
+                                        <span class="time">Yesterday</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                </section>
+
+                <section class="tab-panel" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" hidden>
+                    <section class="card profile-hero-card">
+                        <div class="profile-hero-banner"></div>
+                        <div class="profile-hero-content">
+                            <div class="profile-hero-main">
+                                <div class="profile-header-compact profile-header-large">
+                                    <div class="avatar-xl">ABC</div>
+                                    <div class="verified-badge" title="Verified Industry Partner"><i class="ph-fill ph-seal-check"></i></div>
+                                </div>
+                                <div class="profile-body-compact profile-body-wide">
+                                    <div class="profile-title-row">
+                                        <div>
+                                            <h3>ABC Technologies</h3>
+                                            <p class="industry-type">Technology • Software</p>
+                                        </div>
+                                        <div class="profile-quick-actions">
+                                            <button class="btn btn-primary"><i class="ph ph-pencil-simple"></i> Edit Profile</button>
+                                            <button class="btn btn-outline"><i class="ph ph-eye"></i> Preview Public Page</button>
+                                        </div>
+                                    </div>
+                                    <p class="profile-description">A campus hiring and innovation partner focused on software engineering, analytics, and industry-academia collaboration programs.</p>
+                                    <div class="profile-metrics">
+                                        <div class="metric"><span class="val">12</span><span class="lbl">Opportunities</span></div>
+                                        <div class="metric"><span class="val">8</span><span class="lbl">Collaborations</span></div>
+                                        <div class="metric"><span class="val">46</span><span class="lbl">Hired</span></div>
+                                        <div class="metric"><span class="val">4.8</span><span class="lbl">Campus Rating</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="profile-highlights">
+                                <div class="highlight-chip"><i class="ph ph-map-pin"></i> Bengaluru, India</div>
+                                <div class="highlight-chip"><i class="ph ph-globe"></i> abctech.example</div>
+                                <div class="highlight-chip"><i class="ph ph-users-three"></i> 500-1000 employees</div>
+                                <div class="highlight-chip"><i class="ph ph-graduation-cap"></i> 14 campus partners</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="profile-grid">
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Profile Completion</h3>
+                                    <p class="subtitle">Keep your company page updated for stronger candidate trust.</p>
+                                </div>
+                            </div>
+                            <div class="profile-completion">
+                                <div class="completion-overview">
+                                    <div class="completion-score">84%</div>
+                                    <div>
+                                        <h4>Well positioned</h4>
+                                        <p>Add hiring benefits and employee testimonials to finish the profile.</p>
+                                    </div>
+                                </div>
+                                <div class="progress-bar large">
+                                    <div class="progress-fill" style="width: 84%;"></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="card">
+                            <div class="card-header">
+                                <div>
+                                    <h3>Profile Actions</h3>
+                                    <p class="subtitle">Manage the parts candidates and institutions see first.</p>
+                                </div>
+                            </div>
+                            <div class="profile-actions-list">
+                                <button class="profile-action-item">
+                                    <span><i class="ph ph-identification-card"></i> Company details</span>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                                <button class="profile-action-item">
+                                    <span><i class="ph ph-briefcase"></i> Hiring preferences</span>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                                <button class="profile-action-item">
+                                    <span><i class="ph ph-image"></i> Brand assets</span>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                                <button class="profile-action-item">
+                                    <span><i class="ph ph-shield-check"></i> Verification & compliance</span>
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Post Opportunity Modal -->
+    <div class="modal-overlay" id="postModalOverlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Post New Opportunity</h2>
+                <button class="icon-btn close-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="postOpportunityForm">
+                    <div class="form-grid">
+                        <div class="form-group span-2">
+                            <label>Opportunity Type</label>
+                            <div class="radio-group">
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="internship" checked>
+                                    <span class="radio-content">Internship</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="fulltime">
+                                    <span class="radio-content">Full-time Job</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="apprenticeship">
+                                    <span class="radio-content">Apprenticeship</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="opp_type" value="project">
+                                    <span class="radio-content">Live Project</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label for="title">Title</label>
+                            <input type="text" id="title" placeholder="e.g. Machine Learning Intern" class="form-control">
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label for="description">Description</label>
+                            <textarea id="description" rows="3" placeholder="Describe the role and responsibilities..." class="form-control"></textarea>
+                        </div>
+
+                        <div class="form-group span-2">
+                            <label for="skills">Required Skills</label>
+                            <input type="text" id="skills" placeholder="e.g. Python, TensorFlow, SQL (comma separated)" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="qualification">Minimum Qualification</label>
+                            <select id="qualification" class="form-control">
+                                <option>B.E. / B.Tech</option>
+                                <option>M.E. / M.Tech</option>
+                                <option>B.Sc / M.Sc</option>
+                                <option>Any Degree</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cgpa">Minimum CGPA</label>
+                            <input type="number" id="cgpa" placeholder="e.g. 7.5" step="0.1" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" placeholder="e.g. Bangalore / Remote" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="duration">Duration</label>
+                            <input type="text" id="duration" placeholder="e.g. 6 Months" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="stipend">Stipend / Salary</label>
+                            <input type="text" id="stipend" placeholder="e.g. ₹20,000/month" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="deadline">Application Deadline</label>
+                            <input type="date" id="deadline" class="form-control">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-modal">Cancel</button>
+                <button class="btn btn-primary">Publish Opportunity</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

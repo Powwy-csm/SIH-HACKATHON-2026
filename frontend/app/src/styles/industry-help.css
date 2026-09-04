@@ -1,0 +1,79 @@
+
+/* ==========================================================================
+   INDUSTRY PORTAL - HELP CENTER
+   ========================================================================== */
+
+.industry-portal .help-faq-list {
+    display: grid;
+    gap: 0;
+}
+
+.industry-portal .help-faq-item {
+    display: flex;
+    gap: 16px;
+    padding: 22px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.industry-portal .help-faq-item:first-child {
+    padding-top: 8px;
+}
+
+.industry-portal .help-faq-item:last-child {
+    border-bottom: none;
+    padding-bottom: 8px;
+}
+
+.industry-portal .help-faq-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--primary-light);
+    color: var(--primary-blue);
+}
+
+.industry-portal .help-faq-item h4 {
+    margin: 0 0 7px;
+    font-size: 15px;
+    color: var(--text-main);
+}
+
+.industry-portal .help-faq-item p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.industry-portal .help-support-card {
+    margin-top: 24px;
+}
+
+.industry-portal .help-support-content {
+    display: flex;
+    gap: 64px;
+    padding-top: 4px;
+}
+
+.industry-portal .help-support-content > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.industry-portal .help-support-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+@media (max-width: 700px) {
+    .industry-portal .help-support-content {
+        flex-direction: column;
+        gap: 20px;
+    }
+}

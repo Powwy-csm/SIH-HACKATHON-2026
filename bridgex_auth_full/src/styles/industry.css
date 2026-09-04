@@ -1,0 +1,3100 @@
+.industry-portal {
+
+    
+    --primary-dark-blue: #0B1F3A;
+    --secondary-blue: #123B66;
+    --accent-blue: #2563EB;
+    --accent-blue-hover: #1D4ED8;
+    --light-blue-accent: #DBEAFE;
+    
+    --bg-light: #F5F7FA;
+    --card-bg: #FFFFFF;
+    
+    --text-main: #172033;
+    --text-muted: #64748B;
+    --text-inverse: #FFFFFF;
+    
+    --border-color: #E2E8F0;
+    
+    --success: #16A34A;
+    --success-light: #DCFCE7;
+    --warning: #F59E0B;
+    --warning-light: #FEF3C7;
+    --danger: #DC2626;
+    
+    --sidebar-width: 260px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+
+}
+.industry-portal * {
+
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+
+}
+.industry-portal {
+
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-main);
+    font-size: 14px;
+    line-height: 1.5;
+
+}
+.industry-portal {
+
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    max-width: 100vw;
+    overflow: hidden;
+
+}
+.industry-portal .sidebar {
+
+    width: var(--sidebar-width);
+    background-color: var(--primary-dark-blue);
+    color: var(--text-inverse);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 50;
+
+}
+.industry-portal .sidebar-header {
+
+    min-height: 64px;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    gap: 4px;
+
+}
+.industry-portal .logo {
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+
+}
+.industry-portal .logo i {
+
+    font-size: 20px;
+    color: var(--accent-blue);
+
+}
+.industry-portal .role-badge {
+
+    font-size: 10px;
+    font-weight: 600;
+    color: #93C5FD;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+
+}
+.industry-portal .mobile-close {
+
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    position: absolute;
+    right: 14px;
+    top: 14px;
+
+}
+.industry-portal .sidebar-nav {
+
+    flex: 1;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+}
+.industry-portal .sidebar-nav::-webkit-scrollbar {
+
+    display: none;
+
+}
+.industry-portal .nav-label {
+
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    color: #64748B;
+    margin-bottom: 4px;
+    padding-left: 10px;
+    font-weight: 600;
+
+}
+.industry-portal .mt-4 {
+
+    margin-top: 16px;
+
+}
+.industry-portal .nav-item {
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    color: #CBD5E1;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    margin-bottom: 2px;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s;
+
+}
+.industry-portal .nav-item i {
+
+    font-size: 16px;
+    flex-shrink: 0;
+
+}
+.industry-portal .nav-item:hover, .industry-portal .nav-item.active {
+
+    background-color: rgba(255,255,255,0.1);
+    color: var(--text-inverse);
+
+}
+.industry-portal .nav-item.active {
+
+    border-left: 3px solid var(--accent-blue);
+
+}
+.industry-portal .sidebar-footer {
+
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+
+}
+.industry-portal .company-mini-profile {
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px;
+    background-color: var(--secondary-blue);
+    border-radius: var(--radius-sm);
+
+}
+.industry-portal .company-mini-profile .avatar {
+
+    width: 36px;
+    height: 36px;
+    background-color: var(--accent-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 12px;
+
+}
+.industry-portal .company-mini-profile .info {
+
+    display: flex;
+    flex-direction: column;
+
+}
+.industry-portal .company-mini-profile .name {
+
+    font-size: 13px;
+    font-weight: 600;
+
+}
+.industry-portal .company-mini-profile .role {
+
+    font-size: 11px;
+    color: #94A3B8;
+
+}
+.industry-portal .main-content {
+
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
+
+}
+.industry-portal .topbar {
+
+    height: 70px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+
+}
+.industry-portal .topbar-left {
+
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+}
+.industry-portal .mobile-toggle {
+
+    display: none;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-main);
+
+}
+.industry-portal .page-title {
+
+    font-size: 18px;
+    font-weight: 600;
+
+}
+.industry-portal .topbar-right {
+
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+}
+.industry-portal .search-bar {
+
+    position: relative;
+    width: 300px;
+
+}
+.industry-portal .search-bar i {
+
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+
+}
+.industry-portal .search-bar input {
+
+    width: 100%;
+    padding: 8px 16px 8px 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 13px;
+    outline: none;
+    transition: border 0.2s;
+    background-color: var(--bg-light);
+
+}
+.industry-portal .search-bar input:focus {
+
+    border-color: var(--accent-blue);
+    background-color: var(--card-bg);
+
+}
+.industry-portal .icon-btn {
+
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+
+}
+.industry-portal .icon-btn:hover {
+
+    color: var(--text-main);
+
+}
+.industry-portal .badge {
+
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+.industry-portal .profile-dropdown {
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding-left: 16px;
+    border-left: 1px solid var(--border-color);
+
+}
+.industry-portal .profile-dropdown .avatar img {
+
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+
+}
+.industry-portal .profile-name {
+
+    font-weight: 500;
+    font-size: 13px;
+
+}
+.industry-portal .dashboard-area {
+
+    padding: 32px;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+
+}
+.industry-portal .dashboard-header {
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+}
+.industry-portal .dashboard-header h2 {
+
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+
+}
+.industry-portal .dashboard-tabs {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    margin-bottom: 24px;
+
+}
+.industry-portal .dashboard-tab {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+}
+.industry-portal .dashboard-tab:hover {
+
+    color: var(--text-main);
+    background-color: var(--bg-light);
+
+}
+.industry-portal .dashboard-tab.active {
+
+    background-color: var(--accent-blue);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+
+}
+.industry-portal .tab-panel {
+
+    display: none;
+
+}
+.industry-portal .tab-panel.active {
+
+    display: block;
+
+}
+.industry-portal .subtitle {
+
+    color: var(--text-muted);
+    font-size: 14px;
+
+}
+.industry-portal .btn {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    border: none;
+
+}
+.industry-portal .btn-primary {
+
+    background-color: var(--accent-blue);
+    color: white;
+
+}
+.industry-portal .btn-primary:hover {
+
+    background-color: var(--accent-blue-hover);
+
+}
+.industry-portal .btn-outline {
+
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+
+}
+.industry-portal .btn-outline:hover {
+
+    background-color: var(--bg-light);
+
+}
+.industry-portal .btn-text {
+
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 13px;
+
+}
+.industry-portal .btn-link {
+
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-weight: 500;
+
+}
+.industry-portal .btn-shortlist.shortlisted {
+
+    background-color: var(--success);
+    color: white;
+
+}
+.industry-portal .w-100 {
+
+    width: 100%;
+
+}
+.industry-portal .stats-grid {
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+
+}
+.industry-portal .stat-card {
+
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+
+}
+.industry-portal .stat-icon {
+
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    background-color: var(--light-blue-accent);
+    color: var(--accent-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+
+}
+.industry-portal .stat-info {
+
+    display: flex;
+    flex-direction: column;
+
+}
+.industry-portal .stat-value {
+
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+
+}
+.industry-portal .stat-label {
+
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+
+}
+.industry-portal .stat-trend {
+
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+}
+.industry-portal .stat-trend.success {
+ color: var(--success); 
+}
+.industry-portal .stat-trend.neutral {
+ color: var(--text-muted); 
+}
+.industry-portal .dashboard-layout {
+
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+
+}
+.industry-portal .col-main {
+
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+
+}
+.industry-portal .col-side {
+
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+
+}
+.industry-portal .card {
+
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+
+}
+.industry-portal .card-header {
+
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+}
+.industry-portal .border-none {
+
+    border-bottom: none;
+    padding-bottom: 10px;
+
+}
+.industry-portal .card-header h3 {
+
+    font-size: 16px;
+    font-weight: 600;
+
+}
+.industry-portal .talent-list {
+
+    display: flex;
+    flex-direction: column;
+
+}
+.industry-portal .talent-card {
+
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+
+}
+.industry-portal .talent-card:hover {
+
+    background-color: var(--bg-light);
+
+}
+.industry-portal .talent-card:last-child {
+
+    border-bottom: none;
+
+}
+.industry-portal .talent-basic {
+
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+
+}
+.industry-portal .avatar-lg {
+
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+
+}
+.industry-portal .talent-info h4 {
+
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+
+}
+.industry-portal .college {
+
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+
+}
+.industry-portal .skills-wrap {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+}
+.industry-portal .skill-pill {
+
+    background-color: var(--light-blue-accent);
+    color: var(--secondary-blue);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+
+}
+.industry-portal .talent-meta {
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+
+}
+.industry-portal .match-score {
+
+    width: 120px;
+
+}
+.industry-portal .score-text {
+
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-align: right;
+
+}
+.industry-portal .score-text span {
+
+    font-weight: 700;
+    color: var(--text-main);
+
+}
+.industry-portal .progress-bar {
+
+    height: 6px;
+    background-color: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+    width: 100%;
+
+}
+.industry-portal .progress-fill {
+
+    height: 100%;
+    border-radius: 3px;
+    background-color: var(--accent-blue);
+
+}
+.industry-portal .progress-fill.excellent {
+ background-color: var(--success); 
+}
+.industry-portal .progress-fill.good {
+ background-color: var(--accent-blue); 
+}
+.industry-portal .talent-stats {
+
+    font-size: 12px;
+    color: var(--text-muted);
+
+}
+.industry-portal .talent-actions {
+
+    display: flex;
+    gap: 8px;
+
+}
+.industry-portal .table-responsive {
+
+    overflow-x: auto;
+
+}
+.industry-portal .data-table {
+
+    width: 100%;
+    border-collapse: collapse;
+
+}
+.industry-portal .data-table th, .industry-portal .data-table td {
+
+    padding: 16px 24px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+
+}
+.industry-portal .data-table th {
+
+    background-color: var(--bg-light);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+
+}
+.industry-portal .data-table td {
+
+    font-size: 13px;
+
+}
+.industry-portal .data-table tr:last-child td {
+
+    border-bottom: none;
+
+}
+.industry-portal .font-medium {
+
+    font-weight: 500;
+
+}
+.industry-portal .badge {
+
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+
+}
+.industry-portal .badge-gray {
+
+    background-color: #F1F5F9;
+    color: #475569;
+
+}
+.industry-portal .badge-blue {
+
+    background-color: var(--light-blue-accent);
+    color: var(--accent-blue);
+
+}
+.industry-portal .badge-success {
+
+    background-color: var(--success-light);
+    color: var(--success);
+
+}
+.industry-portal .chart-container {
+
+    padding: 20px 24px;
+    height: 250px;
+    position: relative;
+
+}
+.industry-portal .profile-card {
+
+    text-align: center;
+    padding-bottom: 24px;
+
+}
+.industry-portal .col-side .profile-card {
+
+    display: none;
+
+}
+.industry-portal .profile-header-compact {
+
+    height: 80px;
+    background-color: var(--primary-dark-blue);
+    position: relative;
+    display: flex;
+    justify-content: center;
+
+}
+.industry-portal .avatar-xl {
+
+    width: 72px;
+    height: 72px;
+    background-color: var(--card-bg);
+    border: 3px solid var(--card-bg);
+    color: var(--primary-dark-blue);
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    position: absolute;
+    bottom: -36px;
+    box-shadow: var(--shadow-sm);
+
+}
+.industry-portal .verified-badge {
+
+    position: absolute;
+    bottom: -40px;
+    right: calc(50% - 46px);
+    color: var(--accent-blue);
+    font-size: 20px;
+    background: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+.industry-portal .profile-body-compact {
+
+    padding: 50px 24px 0;
+
+}
+.industry-portal .profile-body-compact h3 {
+
+    font-size: 18px;
+    margin-bottom: 4px;
+
+}
+.industry-portal .industry-type {
+
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+
+}
+.industry-portal .profile-metrics {
+
+    display: flex;
+    justify-content: space-around;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 16px;
+
+}
+.industry-portal .metric {
+
+    display: flex;
+    flex-direction: column;
+
+}
+.industry-portal .metric .val {
+
+    font-size: 18px;
+    font-weight: 700;
+
+}
+.industry-portal .metric .lbl {
+
+    font-size: 11px;
+    color: var(--text-muted);
+
+}
+.industry-portal .profile-hero-card {
+
+    overflow: hidden;
+    padding: 0;
+    margin-bottom: 24px;
+
+}
+.industry-portal .profile-hero-banner {
+
+    height: 120px;
+    background: linear-gradient(135deg, var(--primary-dark-blue), #1D4ED8);
+
+}
+.industry-portal .profile-hero-content {
+
+    padding: 0 38px 28px;
+
+}
+.industry-portal .profile-hero-main {
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: -48px;
+
+}
+.industry-portal .profile-header-large {
+
+    min-width: 96px;
+
+}
+/* NOTE: original selector here was truncated to bare .industry-portal,
+   which incorrectly applied flex:1 + padding to the whole app root.
+   No current JSX uses profile-header-large/profile-title-row together
+   with a matching child class, so the intended target is unclear -
+   removed rather than guessed. Revisit if the full Company Profile
+   page's header layout looks unstyled. */
+.industry-portal .profile-title-row {
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 12px;
+
+}
+.industry-portal .profile-quick-actions {
+
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+
+}
+.industry-portal .profile-description {
+
+    max-width: 760px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+
+}
+.industry-portal .profile-highlights {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+
+}
+.industry-portal .highlight-chip {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background-color: var(--bg-light);
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 500;
+
+}
+.industry-portal .profile-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+
+}
+.industry-portal .profile-completion {
+
+    padding: 0 24px 24px;
+
+}
+.industry-portal .completion-overview {
+
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+
+}
+.industry-portal .completion-score {
+
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), #60A5FA);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    flex-shrink: 0;
+
+}
+.industry-portal .completion-overview h4 {
+
+    font-size: 17px;
+    margin-bottom: 4px;
+
+}
+.industry-portal .completion-overview p {
+
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+
+}
+.industry-portal .progress-bar.large {
+
+    height: 10px;
+
+}
+.industry-portal .profile-actions-list {
+
+    display: flex;
+    flex-direction: column;
+    padding: 0 24px 24px;
+
+}
+.industry-portal .profile-action-item {
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--card-bg);
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+}
+.industry-portal .profile-action-item + .profile-action-item {
+
+    margin-top: 12px;
+
+}
+.industry-portal .profile-action-item span {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+}
+.industry-portal .profile-action-item:hover {
+
+    border-color: var(--accent-blue);
+    background-color: var(--bg-light);
+
+}
+.industry-portal .skill-demand-list {
+
+    padding: 0 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+}
+.industry-portal .demand-label {
+
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+    font-weight: 500;
+
+}
+.industry-portal .collab-card {
+
+    border-top: 4px solid var(--primary-dark-blue);
+
+}
+.industry-portal .section-micro-title {
+
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+
+}
+.industry-portal .collab-events {
+
+    padding: 0 24px 20px;
+
+}
+.industry-portal .event-item {
+
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: center;
+
+}
+.industry-portal .event-date {
+
+    background-color: var(--light-blue-accent);
+    color: var(--secondary-blue);
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+}
+.industry-portal .event-date .day {
+
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+
+}
+.industry-portal .event-date .month {
+
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+
+}
+.industry-portal .event-details h5 {
+
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+
+}
+.industry-portal .event-details p {
+
+    font-size: 12px;
+    color: var(--text-muted);
+
+}
+.industry-portal .collab-actions {
+
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    background-color: var(--bg-light);
+
+}
+.industry-portal .timeline {
+
+    padding: 0 24px 24px;
+
+}
+.industry-portal .timeline-item {
+
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    position: relative;
+
+}
+.industry-portal .timeline-item:last-child {
+
+    margin-bottom: 0;
+
+}
+.industry-portal .timeline-item::before {
+
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -20px;
+    width: 2px;
+    background-color: var(--border-color);
+
+}
+.industry-portal .timeline-item:last-child::before {
+
+    display: none;
+
+}
+.industry-portal .timeline-icon {
+
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    z-index: 1;
+
+}
+.industry-portal .bg-light-blue {
+ background-color: var(--light-blue-accent); 
+}
+.industry-portal .text-accent {
+ color: var(--accent-blue); 
+}
+.industry-portal .bg-light-success {
+ background-color: var(--success-light); 
+}
+.industry-portal .text-success {
+ color: var(--success); 
+}
+.industry-portal .bg-light-warning {
+ background-color: var(--warning-light); 
+}
+.industry-portal .text-warning {
+ color: var(--warning); 
+}
+.industry-portal .timeline-content {
+
+    flex: 1;
+    padding-top: 6px;
+
+}
+.industry-portal .timeline-content p {
+
+    font-size: 13px;
+    margin-bottom: 4px;
+
+}
+.industry-portal .timeline-content .time {
+
+    font-size: 11px;
+    color: var(--text-muted);
+
+}
+.industry-portal .modal-overlay, .modal-overlay.industry-modal, .industry-modal .modal-overlay {
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 31, 58, 0.7);
+    display: none; 
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+
+}
+.industry-portal .modal-container {
+
+    background-color: var(--card-bg);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+}
+.industry-portal .modal-header {
+
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+}
+.industry-portal .modal-header h2 {
+
+    font-size: 18px;
+    font-weight: 600;
+
+}
+.industry-portal .modal-body {
+
+    padding: 24px;
+    overflow-y: auto;
+
+}
+.industry-portal .modal-footer {
+
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background-color: var(--bg-light);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+
+}
+.industry-portal .form-grid {
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+}
+.industry-portal .span-2 {
+
+    grid-column: span 2;
+
+}
+.industry-portal .form-group label {
+
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text-main);
+
+}
+.industry-portal .form-control {
+
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+
+}
+.industry-portal .form-control:focus {
+
+    border-color: var(--accent-blue);
+
+}
+.industry-portal textarea.form-control {
+
+    resize: vertical;
+
+}
+.industry-portal .radio-group {
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+
+}
+.industry-portal .radio-card {
+
+    display: block;
+    position: relative;
+    cursor: pointer;
+
+}
+.industry-portal .radio-card input {
+
+    position: absolute;
+    opacity: 0;
+
+}
+.industry-portal .radio-content {
+
+    display: block;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+    background-color: var(--card-bg);
+
+}
+.industry-portal .radio-card input:checked + .radio-content {
+
+    border-color: var(--accent-blue);
+    background-color: var(--light-blue-accent);
+    color: var(--accent-blue);
+
+}
+@media (max-width: 1100px) {
+.industry-portal .dashboard-layout {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .profile-grid {
+        padding-left: 12px;
+    padding-right: 12px;
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .stats-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+.industry-portal .talent-card {
+
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    
+}
+.industry-portal .talent-meta {
+
+        align-items: flex-start;
+        width: 100%;
+    
+}
+.industry-portal .score-text {
+
+        text-align: left;
+    
+}
+.industry-portal .match-score {
+
+        width: 200px;
+    
+}
+
+
+}
+@media (max-width: 768px) {
+.industry-portal .sidebar {
+
+        position: fixed;
+        transform: translateX(-100%);
+    
+}
+.industry-portal .sidebar.show {
+
+        transform: translateX(0);
+    
+}
+.industry-portal .mobile-toggle, .industry-portal .mobile-close {
+
+        display: block;
+    
+}
+.industry-portal .search-bar {
+
+        display: none;
+    
+}
+.industry-portal .topbar {
+
+        padding: 0 16px;
+    
+}
+.industry-portal .dashboard-area {
+
+        padding: 16px;
+    
+}
+.industry-portal .dashboard-header, .industry-portal .profile-hero-main, .industry-portal .profile-title-row, .industry-portal .completion-overview {
+
+        flex-direction: column;
+        align-items: flex-start;
+    
+}
+.industry-portal .dashboard-tabs {
+
+        display: flex;
+        width: 100%;
+        border-radius: 16px;
+    
+}
+.industry-portal .dashboard-tab {
+
+        flex: 1;
+        justify-content: center;
+    
+}
+.industry-portal .profile-hero-content {
+
+        padding: 0 30px 20px;
+    
+}
+.industry-portal .modal-container {
+
+        width: 100%;
+    
+}
+.industry-portal .stats-grid {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .radio-group {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+.industry-portal .form-grid {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .span-2 {
+
+        grid-column: span 1;
+    
+}
+
+
+}
+.industry-portal {
+
+    --bg-light: #F8FAFC;
+    --card-bg: #FFFFFF;
+    --border-color: #E8EEF5;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --primary-dark-blue: #091527;
+    --secondary-blue: #0F233D;
+    --accent-blue: #2563EB;
+    --accent-blue-hover: #1D4ED8;
+    --light-blue-accent: #EFF6FF;
+    --danger-light: #FEE2E2;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --shadow-sm: 0 2px 12px rgba(15, 23, 42, 0.03), 0 1px 3px rgba(15, 23, 42, 0.02);
+    --shadow-md: 0 16px 36px rgba(15, 23, 42, 0.06);
+
+}
+.industry-portal {
+
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    color: var(--text-main);
+    font-size: 15px;
+    line-height: 1.6;
+
+}
+.industry-portal .topbar {
+
+    height: 76px;
+    padding: 0 48px;
+    background-color: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+
+}
+.industry-portal .dashboard-area {
+
+    max-width: 1440px;
+    padding: 40px 40px 72px;
+    box-sizing: border-box;
+    width: 100%;
+
+}
+.industry-portal .dashboard-header {
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 42px;
+
+}
+.industry-portal .dashboard-header h2 {
+
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+
+}
+.industry-portal .subtitle {
+
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 680px;
+    margin-top: 12px;
+
+}
+.industry-portal .stats-grid, .industry-portal .dashboard-layout, .industry-portal .profile-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 38px;
+
+}
+.industry-portal .stats-grid {
+
+    margin-bottom: 42px;
+
+}
+.industry-portal .dashboard-layout {
+
+    grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.95fr);
+
+}
+.industry-portal .card, .industry-portal .stat-card {
+
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    background-color: var(--card-bg);
+
+}
+/* NOTE: original selector here was truncated to bare .industry-portal.
+   Guessed .card initially, but .card-header already inherits 24px
+   horizontal padding from its own rule above - adding 28px here too
+   would double-pad it. Real target unclear without more context;
+   removed rather than risk a new visual bug. Revisit if a
+   profile-detail-page card section looks like it's missing side
+   padding on its direct (non-card-header) content. */
+.industry-portal .card-header {
+
+    padding-top: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border-color);
+
+}
+.industry-portal .card-header h3 {
+
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+
+}
+.industry-portal .stat-card {
+
+    min-height: 124px;
+    padding: 28px;
+    align-items: center;
+
+}
+.industry-portal .stat-icon {
+
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background-color: var(--light-blue-accent);
+    color: var(--accent-blue);
+
+}
+.industry-portal .stat-value {
+
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+
+}
+.industry-portal .stat-label {
+
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+
+}
+.industry-portal .talent-card {
+
+    padding-top: 24px;
+    padding-bottom: 24px;
+
+}
+.industry-portal .skills-wrap, .industry-portal .tags {
+
+    gap: 8px;
+
+}
+.industry-portal .tags {
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+
+}
+.industry-portal .tags .tag {
+
+    position: relative !important;
+    padding-left: 18px !important;
+
+}
+.industry-portal .tags .tag::before {
+
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0.65em !important;
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    background: var(--accent-blue) !important;
+
+}
+.industry-portal .skill-pill, .industry-portal .tag, .industry-portal .status-badge {
+
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 500;
+
+}
+.industry-portal .btn {
+
+    min-height: 42px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s ease;
+
+}
+.industry-portal .btn-primary {
+
+    background-color: var(--accent-blue);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.20);
+
+}
+.industry-portal .btn-primary:hover {
+
+    background-color: var(--accent-blue-hover);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+
+}
+.industry-portal .search-bar {
+
+    width: min(360px, 32vw);
+
+}
+.industry-portal .search-bar input {
+
+    min-height: 42px;
+    border-radius: 999px;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+
+}
+.industry-portal .p-28 {
+
+    padding: 28px;
+
+}
+.industry-portal .profile-hero-card {
+
+    background-color:  #DBEAFE;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 42px;
+
+}
+.industry-portal .profile-hero-banner {
+
+    height: 120px;
+    background: linear-gradient(135deg, #091527 0%, #1D4ED8 100%);
+    position: relative;
+
+}
+.industry-portal .profile-hero-content {
+
+    padding: 0 42px 58px;
+    position: relative;
+    top: 25px;
+
+}
+.industry-portal .profile-hero-header {
+
+    display: flex;
+    align-items: flex-end;
+    gap: 36px;
+    margin-top: -18px;
+    margin-bottom: 46px;
+    flex-wrap: wrap;
+    
+
+}
+.industry-portal .profile-avatar {
+
+    width: 96px;
+    height: 96px;
+    background: #FFFFFF;
+    border: 4px solid #FFFFFF;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-dark-blue);
+    flex-shrink: 0;
+    position: relative;
+    bottom: 45px;
+
+}
+.industry-portal .profile-avatar .verified-badge {
+
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: var(--accent-blue);
+    color: #FFFFFF;
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+.industry-portal .profile-details {
+
+    flex: 1;
+    min-width: 260px;
+
+}
+.industry-portal .profile-title {
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+
+}
+.industry-portal .profile-title h2 {
+
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-main);
+
+}
+.industry-portal .profile-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.9fr);
+    gap: 32px;
+    width: 100%;
+    align-items: start;
+
+}
+.industry-portal .col-main, .industry-portal .col-side {
+
+    min-width: 0;
+
+}
+.industry-portal .col-main, .industry-portal .col-side {
+
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+
+}
+.industry-portal .profile-meta {
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 13.5px;
+
+}
+.industry-portal .profile-meta a {
+
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-weight: 500;
+
+}
+.industry-portal .profile-meta a:hover {
+
+    text-decoration: underline;
+
+}
+.industry-portal .profile-actions {
+
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+
+}
+.industry-portal .profile-stats-bar {
+
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 24px;
+
+    padding: 26px 32px;
+
+    background: var(--bg-light);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+
+    margin-top: 24px;
+
+}
+.industry-portal .p-stat {
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
+
+}
+.industry-portal .p-stat .val {
+
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text-main);
+
+}
+.industry-portal .p-stat .lbl {
+
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+
+}
+.industry-portal .section-title {
+
+    font-size: 18px;
+    font-weight: 700;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    color: var(--text-main);
+
+    margin: 0 0 18px;
+    line-height: 1.3;
+
+}
+.industry-portal .section-title i {
+
+    color: var(--accent-blue);
+    font-size: 19px;
+    flex-shrink: 0;
+
+}
+.industry-portal .text-content {
+
+    font-size: 14.5px;
+    line-height: 1.75;
+    color: var(--text-main);
+
+}
+.industry-portal .subtitle {
+
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-muted);
+
+}
+.industry-portal .skill-focus-grid {
+
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+}
+.industry-portal .skill-focus-item {
+
+    padding: 20px 22px;
+
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    transition: none;
+
+}
+.industry-portal .skill-focus-header {
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    gap: 16px;
+    margin-bottom: 9px;
+
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.45;
+
+}
+.industry-portal .skill-focus-header strong {
+
+    flex: 1;
+    min-width: 0;
+
+}
+.industry-portal .skill-focus-item p {
+
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+
+    margin: 0;
+
+}
+.industry-portal .mou-partner-list {
+
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+}
+.industry-portal .mou-card-item {
+
+    display: flex;
+    align-items: flex-start;
+
+    gap: 16px;
+    padding: 18px 20px;
+
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+}
+.industry-portal .mou-logo-box {
+
+    width: 48px;
+    height: 48px;
+
+    background: #EFF6FF;
+    color: #1D4ED8;
+
+    border-radius: 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-weight: 700;
+    font-size: 16px;
+
+    flex-shrink: 0;
+
+}
+.industry-portal .mou-card-content {
+
+    flex: 1;
+    min-width: 0;
+
+}
+.industry-portal .mou-card-top {
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    gap: 14px;
+    margin-bottom: 7px;
+
+}
+.industry-portal .mou-card-top h5 {
+
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.4;
+
+    margin: 0;
+
+    
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+
+}
+.industry-portal .mou-card-content p {
+
+    margin: 0;
+    line-height: 1.55;
+
+}
+.industry-portal .workflow-steps-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 16px;
+
+}
+.industry-portal .workflow-step {
+
+    padding: 20px;
+
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 150px;
+
+}
+.industry-portal .step-num {
+
+    width: 32px;
+    height: 32px;
+
+    background: var(--accent-blue);
+    color: white;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-weight: 700;
+    font-size: 14px;
+
+    margin-bottom: 12px;
+
+    
+    box-shadow: none;
+
+}
+.industry-portal .workflow-step h5 {
+
+    font-size: 14px;
+    font-weight: 700;
+
+    margin: 0 0 7px;
+    line-height: 1.4;
+
+}
+.industry-portal .workflow-step p {
+
+    font-size: 13px;
+    color: var(--text-muted);
+
+    line-height: 1.55;
+    margin: 0;
+
+}
+.industry-portal .recruiter-profile {
+
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+    margin: 0;
+
+}
+.industry-portal .contact-list {
+
+    list-style: none;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 13px;
+
+    margin: 16px 0 0;
+    padding: 0;
+
+}
+.industry-portal .contact-list li {
+
+    display: flex;
+    align-items: flex-start;
+
+    gap: 11px;
+
+    font-size: 14px;
+    color: var(--text-main);
+
+    line-height: 1.5;
+
+}
+.industry-portal .contact-list li i {
+
+    color: var(--accent-blue);
+    font-size: 17px;
+
+    margin-top: 2px;
+
+    flex-shrink: 0;
+
+}
+.industry-portal .completion-overview {
+
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+}
+.industry-portal .completion-score {
+
+    width: 82px;
+    height: 82px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--accent-blue);
+    color: white;
+
+    font-size: 20px;
+    font-weight: 800;
+
+    flex-shrink: 0;
+
+}
+.industry-portal .completion-checklist {
+
+    list-style: none;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 11px;
+
+    margin: 16px 0 0;
+    padding: 0;
+
+}
+.industry-portal .completion-checklist li {
+
+    display: flex;
+    align-items: flex-start;
+
+    gap: 10px;
+
+    font-size: 13.5px;
+    color: var(--text-main);
+
+    line-height: 1.45;
+
+}
+.industry-portal .completion-checklist li i {
+
+    margin-top: 2px;
+
+    font-size: 16px;
+
+    flex-shrink: 0;
+
+}
+.industry-portal .profile-actions-list {
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+
+}
+.industry-portal .profile-action-item {
+
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 12px 14px;
+
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    background: var(--bg-light);
+
+    color: var(--text-main);
+
+    text-align: left;
+
+}
+.industry-portal .profile-action-item span {
+
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    min-width: 0;
+
+}
+.industry-portal .profile-action-item i {
+
+    flex-shrink: 0;
+
+}
+@media (max-width: 1100px) {
+.industry-portal .profile-grid {
+        padding-left: 12px;
+    padding-right: 12px;
+        grid-template-columns: minmax(0, 1fr);
+    
+}
+.industry-portal .workflow-steps-grid {
+
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    
+}
+.industry-portal .profile-stats-bar {
+
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    
+}
+
+
+}
+@media (max-width: 700px) {
+.industry-portal .profile-grid {
+        padding-left: 12px;
+    padding-right: 12px;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    
+}
+.industry-portal .workflow-steps-grid {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .profile-stats-bar {
+
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    
+}
+.industry-portal .mou-card-top {
+
+        flex-direction: column;
+        align-items: flex-start;
+    
+}
+.industry-portal .completion-overview {
+
+        align-items: flex-start;
+    
+}
+
+
+}
+.industry-portal .recent-activity-section {
+
+    margin-top: 38px;
+    width: 100%;
+
+}
+.industry-portal .recent-activity-grid {
+
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 0 28px 28px;
+
+}
+.industry-portal .activity-card {
+
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 18px;
+    background: var(--bg-light);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.2s;
+
+}
+.industry-portal .activity-card:hover {
+
+    box-shadow: var(--shadow-md);
+
+}
+.industry-portal .activity-card .timeline-icon {
+
+    flex-shrink: 0;
+
+}
+.industry-portal .activity-card .timeline-content {
+
+    padding-top: 0;
+
+}
+.industry-portal .modal-container {
+
+    max-width: 780px;
+    width: 92%;
+    box-sizing: border-box;
+
+}
+.industry-portal .modal-container.modal-wide {
+
+    max-width: 840px;
+
+}
+.industry-portal .form-section-header {
+
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4px;
+
+}
+.industry-portal .form-group {
+
+    display: flex;
+    flex-direction: column;
+
+}
+.industry-portal .radio-group {
+
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+
+}
+.industry-portal .radio-card .radio-content {
+
+    padding: 10px 8px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+
+}
+.industry-portal .radio-card .radio-content i {
+
+    font-size: 20px;
+    color: var(--text-muted);
+
+}
+.industry-portal .radio-card input:checked + .radio-content i {
+
+    color: var(--accent-blue);
+
+}
+.industry-portal .skills-input-wrap {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    min-height: 48px;
+    background: var(--card-bg);
+    cursor: text;
+    align-items: center;
+
+}
+.industry-portal .skill-tag {
+
+    background: var(--light-blue-accent);
+    color: var(--accent-blue);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+}
+.industry-portal .skill-tag button {
+
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    line-height: 1;
+
+}
+.industry-portal .perk-grid {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+}
+.industry-portal .perk-chip {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--card-bg);
+    user-select: none;
+
+}
+.industry-portal .perk-chip:hover, .industry-portal .perk-chip.selected {
+
+    border-color: var(--accent-blue);
+    background: var(--light-blue-accent);
+    color: var(--accent-blue);
+
+}
+@media (max-width: 1100px) {
+.industry-portal .dashboard-layout, .industry-portal .profile-stats-bar {
+
+        grid-template-columns: repeat(3, 1fr);
+    
+}
+.industry-portal .workflow-steps-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+.industry-portal .recent-activity-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+.industry-portal .radio-group {
+
+        grid-template-columns: repeat(3, 1fr);
+    
+}
+
+
+}
+@media (max-width: 768px) {
+.industry-portal .dashboard-area {
+
+        padding: 24px 16px 48px;
+    
+}
+.industry-portal .profile-hero-content {
+
+        padding: 0 36px 20px;
+    
+}
+.industry-portal .profile-stats-bar {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+.industry-portal .workflow-steps-grid {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .recent-activity-grid {
+
+        grid-template-columns: 1fr;
+    
+}
+.industry-portal .radio-group {
+
+        grid-template-columns: repeat(2, 1fr);
+    
+}
+
+
+}
+.industry-portal .profile-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr) !important;
+    gap: 32px !important;
+    align-items: start !important;
+    width: 100% !important;
+
+}
+.industry-portal .col-main, .industry-portal .col-side {
+
+    min-width: 0 !important;
+    width: 100% !important;
+
+}
+.industry-portal .col-main {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 28px !important;
+
+}
+.industry-portal .col-side {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+
+}
+.industry-portal .col-main > .card, .industry-portal .col-side > .card {
+
+    width: 100% !important;
+    box-sizing: border-box !important;
+
+}
+.industry-portal .col-main .card {
+
+    padding: 28px !important;
+
+}
+.industry-portal .col-side .card {
+
+    padding: 30px !important;
+
+}
+.industry-portal .col-main .section-title, .industry-portal .col-side .section-title {
+
+    margin-bottom: 18px !important;
+
+}
+.industry-portal .skill-focus-grid {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 18px !important;
+
+}
+.industry-portal .skill-focus-item {
+
+    padding: 22px 24px !important;
+
+}
+.industry-portal .skill-focus-header {
+
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    margin-bottom: 8px !important;
+
+}
+.industry-portal .skill-focus-header strong {
+
+    min-width: 0 !important;
+    line-height: 1.45 !important;
+
+}
+.industry-portal .skill-focus-item p {
+
+    margin: 0 !important;
+    line-height: 1.6 !important;
+
+}
+.industry-portal .mou-partner-list {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+
+}
+.industry-portal .mou-card-item {
+
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    padding: 18px 20px !important;
+
+}
+.industry-portal .mou-card-content {
+
+    flex: 1 !important;
+    min-width: 0 !important;
+
+}
+.industry-portal .mou-card-top {
+
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    margin-bottom: 7px !important;
+
+}
+.industry-portal .mou-card-top h5 {
+
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.4 !important;
+
+}
+.industry-portal .workflow-steps-grid {
+
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+
+}
+.industry-portal .workflow-step {
+
+    min-width: 0 !important;
+    padding: 20px !important;
+
+}
+.industry-portal .workflow-step h5 {
+
+    line-height: 1.4 !important;
+    margin-bottom: 7px !important;
+
+}
+.industry-portal .workflow-step p {
+
+    line-height: 1.55 !important;
+
+}
+.industry-portal .recruiter-profile {
+
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    margin-top: 16px !important;
+
+}
+.industry-portal .contact-list {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 13px !important;
+
+    margin: 16px 0 0 !important;
+    padding: 0 !important;
+
+    list-style: none !important;
+
+}
+.industry-portal .contact-list li {
+
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 11px !important;
+    line-height: 1.5 !important;
+
+}
+.industry-portal .completion-overview {
+
+    display: flex !important;
+    align-items: center !important;
+    gap: 16px !important;
+    margin-top: 16px !important;
+
+}
+.industry-portal .completion-checklist {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 11px !important;
+
+    margin: 16px 0 0 !important;
+    padding: 0 !important;
+
+    list-style: none !important;
+
+}
+.industry-portal .completion-checklist li {
+
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    line-height: 1.45 !important;
+
+}
+.industry-portal .profile-actions-list {
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+
+    margin-top: 16px !important;
+
+}
+.industry-portal .profile-action-item {
+
+    width: 100% !important;
+    box-sizing: border-box !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+
+    gap: 12px !important;
+    padding: 13px 14px !important;
+
+}
+@media (max-width: 1100px) {
+.industry-portal .profile-grid {
+        padding-left: 12px;
+        padding-right: 12px;
+        grid-template-columns: 1fr !important;
+    
+}
+
+
+}
+@media (max-width: 700px) {
+.industry-portal .workflow-steps-grid {
+
+        grid-template-columns: 1fr !important;
+    
+}
+.industry-portal .mou-card-top {
+
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    
+}
+
+
+}
+
+.industry-portal .application-overview-section {
+    width: 100%;
+    margin-top: 38px;
+}
+
+.industry-portal, .industry-portal * { box-sizing: border-box; }
+.industry-portal { max-width: 100vw !important; overflow-x: hidden !important; }
+.industry-portal .main-content { max-width: 100% !important; overflow-x: hidden !important; min-width: 0 !important; }
+.industry-portal .dashboard-area { max-width: 100% !important; box-sizing: border-box !important; overflow-x: hidden !important; }
+.industry-portal .profile-hero-card { max-width: 100% !important; overflow: hidden !important; }
+
+/* ==========================================================================
+   Self-contained utility classes
+   -----------------------------------------------------------------------
+   These were previously used throughout industry pages but only defined
+   in institution.css / student.css. Since each portal's layout imports
+   only its own stylesheet (see IndustryLayout.jsx), industry.css needs
+   its own copies - otherwise these silently do nothing if a user lands
+   on /industry/... without having first loaded another portal's CSS in
+   the same browser session. Values match institution.css/student.css
+   exactly for visual consistency across portals.
+   ========================================================================== */
+
+.industry-portal .mt-4  { margin-top: 4px; }
+.industry-portal .mt-8  { margin-top: 8px; }
+.industry-portal .mt-12 { margin-top: 12px; }
+.industry-portal .mt-16 { margin-top: 16px; }
+.industry-portal .mt-24 { margin-top: 24px; }
+
+.industry-portal .mb-12 { margin-bottom: 12px; }
+.industry-portal .mb-16 { margin-bottom: 16px; }
+.industry-portal .mb-20 { margin-bottom: 20px; }
+
+.industry-portal .p-0  { padding: 0; }
+.industry-portal .p-24 { padding: 24px; }
+.industry-portal .p-28 { padding: 28px; }
+
+.industry-portal .text-blue    { color: var(--accent-blue); }
+.industry-portal .text-danger  { color: var(--danger); }
+.industry-portal .text-muted   { color: var(--text-muted); }
+.industry-portal .text-success { color: var(--success); }
+.industry-portal .text-warning { color: var(--warning); }
+
+.industry-portal .font-medium { font-weight: 500; }
+.industry-portal .font-bold   { font-weight: 700; }
+
+.industry-portal .border-none { border: none !important; }
+.industry-portal .w-100       { width: 100%; }
+
+.industry-portal .skill-gap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--danger-light);
+    border-radius: 6px;
+}
+
+/* ==========================================================================
+   INDUSTRY PORTAL - FINAL VIEWPORT / SCROLL FIX
+   ========================================================================== */
+
+/* The application itself must fit exactly inside the browser viewport */
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Prevent the browser from creating an outer scrollbar */
+html:has(.industry-portal),
+body:has(.industry-portal) {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Main Industry shell */
+.industry-portal {
+    width: 100%;
+    height: 100vh;
+    min-height: 0;
+    max-height: 100vh;
+
+    display: flex;
+    flex-direction: row;
+
+    overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   SIDEBAR
+   -------------------------------------------------------------------------- */
+
+.industry-portal .sidebar {
+    flex: 0 0 var(--sidebar-width);
+    width: var(--sidebar-width);
+
+    height: 100vh;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   MAIN CONTENT
+   -------------------------------------------------------------------------- */
+
+/*
+   IMPORTANT:
+   width: 0 + flex: 1 is intentional.
+
+   It tells flexbox:
+   "Take whatever space remains after the sidebar.
+    Do NOT calculate your width independently."
+
+   This prevents:
+       sidebar width + main-content width > viewport
+   which was causing your horizontal scrollbar.
+*/
+
+.industry-portal .main-content {
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+    max-width: none;
+
+    height: 100vh;
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Prevent direct children from forcing the main area wider */
+.industry-portal .main-content > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Prevent dashboard/page wrappers from creating horizontal overflow */
+.industry-portal .dashboard-area,
+.industry-portal .view-section {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Images, cards, tables, etc. must not force the page wider */
+.industry-portal img,
+.industry-portal video,
+.industry-portal canvas,
+.industry-portal table {
+    max-width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   MOBILE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+
+    .industry-portal {
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .industry-portal .sidebar {
+        flex: 0 0 auto;
+    }
+
+    .industry-portal .main-content {
+        width: 0;
+        min-width: 0;
+        max-width: 100%;
+    }
+}
+
+/* Profile content alignment */
+.industry-portal .profile-grid .card-header {
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+.industry-portal .profile-grid .card-body {
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+/* Company profile page spacing */
+.industry-portal #profilePanel {
+    padding-left: 38px;
+    padding-right: 38px;
+}
