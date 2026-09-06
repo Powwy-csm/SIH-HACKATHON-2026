@@ -170,6 +170,266 @@ def get_latest_resume_status(client, service_client, student_id: str) -> dict:
     }
 
 
+def list_student_resumes(client, service_client, student_id: str) -> list[dict]:
+    settings = get_settings()
+    rows = repo.fetch_all_resumes_for_student(client, student_id)
+    if not rows:
+        return []
+
+    # Get currently active resume path from students.resume_url
+    student_row = repo.fetch_student_row(client, student_id)
+    active_path = (student_row or {}).get("resume_url")
+
+    # If no resume_url in student_row, first row is active
+    if not active_path and rows:
+        active_path = rows[0]["storage_path"]
+
+    out = []
+    for r in rows:
+        is_active = (r["storage_path"] == active_path) if active_path else (len(out) == 0)
+        signed_url = repo.create_resume_signed_url(
+            service_client,
+            settings.SUPABASE_STORAGE_BUCKET,
+            r["storage_path"],
+            settings.RESUME_SIGNED_URL_EXPIRY_SECONDS,
+        )
+        out.append({
+            "resume_id": r["id"],
+            "file_name": r["file_name"],
+            "file_type": r["file_type"],
+            "file_size": r["file_size"],
+            "storage_path": r["storage_path"],
+            "extraction_status": r["extraction_status"],
+            "processing_status": r.get("status"),
+            "resume_url": signed_url,
+            "is_active": is_active,
+            "uploaded_at": r.get("created_at") or r.get("updated_at"),
+            "skills_count": 0,
+        })
+    return out
+
+
+def delete_student_resume(
+    client,
+    service_client,
+    student_id: str,
+    resume_id: str,
+    delete_skills: bool = True,
+) -> dict:
+    settings = get_settings()
+    resume_row = repo.fetch_resume_for_student(client, student_id, resume_id)
+    if not resume_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found.",
+        )
+
+    storage_path = resume_row.get("storage_path")
+    file_name = resume_row.get("file_name", "resume")
+
+    # 1. Remove physical file from Supabase Storage bucket
+    if storage_path:
+        repo.delete_storage_file(service_client, settings.SUPABASE_STORAGE_BUCKET, storage_path)
+
+    # 2. Delete DB record from resume_processing_jobs (and resumes if present)
+    repo.delete_resume_record(service_client, student_id, resume_id)
+
+    # 3. Clean up unverified skills if requested
+    skills_affected = 0
+    remaining = repo.fetch_all_resumes_for_student(service_client, student_id)
+    if delete_skills:
+        if not remaining:
+            # No resumes remain: wipe out all unverified ai_estimated claims
+            skills_affected = repo.delete_unverified_student_skills(service_client, student_id)
+        else:
+            # Another resume exists. Re-analyze or leave remaining intact
+            pass
+
+    # 4. Update students.resume_url to the new newest resume, or None if none remain
+    if remaining:
+        repo.update_student_resume_url(service_client, student_id, remaining[0]["storage_path"])
+    else:
+        try:
+            service_client.table("students").update({"resume_url": None}).eq("id", student_id).execute()
+        except Exception:
+            pass
+
+    # 5. Refresh opportunity matching
+    try:
+        from app.services import opportunity_service
+        opportunity_service.match_opportunities(
+            client=client,
+            service_client=service_client,
+            student_id=student_id,
+            refresh=True,
+        )
+    except Exception as exc:
+        logger.warning("Could not refresh opportunity matching after resume deletion: %s", exc)
+
+    return {
+        "success": True,
+        "message": f"Resume '{file_name}' and associated records were deleted from Supabase storage and database.",
+        "deleted_id": resume_id,
+        "skills_affected": skills_affected,
+    }
+
+
+def delete_student_document(
+    client,
+    service_client,
+    student_id: str,
+    cert_id: str,
+    delete_skills: bool = True,
+) -> dict:
+    settings = get_settings()
+    cert = repo.fetch_certification(client, student_id, cert_id)
+    if not cert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certification document not found.",
+        )
+
+    credential_url = cert.get("credential_url")
+    title = cert.get("title", "certificate")
+
+    # 1. Remove file from storage bucket if it was stored in student-documents
+    if credential_url and "/" in credential_url and not credential_url.startswith("http"):
+        repo.delete_storage_file(service_client, settings.SUPABASE_STORAGE_BUCKET, credential_url)
+
+    # 2. Delete certification DB record
+    repo.delete_certification_record(service_client, student_id, cert_id)
+
+    # 3. Revert or clean up verified skills corroborated by this certificate
+    skills_affected = 0
+    if delete_skills and credential_url:
+        skills_affected = repo.revert_or_delete_certificate_skills(
+            service_client=service_client,
+            student_id=student_id,
+            evidence_path=credential_url,
+            delete_pure_doc_skills=True,
+        )
+
+    # 4. Refresh opportunity matching
+    try:
+        from app.services import opportunity_service
+        opportunity_service.match_opportunities(
+            client=client,
+            service_client=service_client,
+            student_id=student_id,
+            refresh=True,
+        )
+    except Exception as exc:
+        logger.warning("Could not refresh opportunity matching after cert deletion: %s", exc)
+
+    return {
+        "success": True,
+        "message": f"Certificate '{title}' and associated corroborated skills were removed from Supabase storage and profile.",
+        "deleted_id": cert_id,
+        "skills_affected": skills_affected,
+    }
+
+
+def select_active_resume(client, service_client, student_id: str, resume_id: str) -> dict:
+    resume = repo.fetch_resume_for_student(client, student_id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found.")
+
+    storage_path = resume.get("storage_path")
+    if not storage_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no storage path.")
+
+    # Update student resume_url to make this resume active
+    repo.update_student_resume_url(service_client, student_id, storage_path)
+
+    # Touch updated_at on this resume job so it ranks first
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        service_client.table("resume_processing_jobs").update({"updated_at": now}).eq(
+            "student_id", student_id
+        ).eq("resume_id", resume_id).execute()
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "message": f"Resume '{resume.get('file_name')}' is now active.",
+        "active_resume_id": resume_id,
+    }
+
+
+def clear_student_skills_service(
+    client,
+    service_client,
+    student_id: str,
+    scope: str = "unverified",
+) -> dict:
+    """Clear student skills from student_skills in Supabase.
+    scope='unverified' (default): removes all unverified AI resume claims, keeping verified credentials.
+    scope='all': removes all skills (both verified and unverified) for a clean slate.
+    """
+    if scope == "all":
+        affected = repo.delete_all_student_skills(service_client, student_id)
+        msg = f"All {affected} skills were removed from your profile and database container."
+    else:
+        affected = repo.delete_unverified_student_skills(service_client, student_id)
+        msg = f"Successfully removed {affected} unverified resume claim skills. Verified credentials were preserved."
+
+    # Refresh opportunity matching
+    try:
+        from app.services import opportunity_service
+        opportunity_service.match_opportunities(
+            client=client,
+            service_client=service_client,
+            student_id=student_id,
+            refresh=True,
+        )
+    except Exception as exc:
+        logger.warning("Could not refresh opportunities after clearing skills: %s", exc)
+
+    return {
+        "success": True,
+        "message": msg,
+        "skills_affected": affected,
+    }
+
+
+def delete_single_student_skill_service(
+    client,
+    service_client,
+    student_id: str,
+    skill_identifier: str,
+) -> dict:
+    """Delete a single skill from student_skills in Supabase by skill_id UUID or skill name."""
+    affected = repo.delete_single_student_skill(service_client, student_id, skill_identifier)
+    if affected == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Skill '{skill_identifier}' was not found in your profile or is already removed.",
+        )
+
+    # Refresh opportunity matching
+    try:
+        from app.services import opportunity_service
+        opportunity_service.match_opportunities(
+            client=client,
+            service_client=service_client,
+            student_id=student_id,
+            refresh=True,
+        )
+    except Exception as exc:
+        logger.warning("Could not refresh opportunities after deleting single skill: %s", exc)
+
+    return {
+        "success": True,
+        "message": f"Skill '{skill_identifier}' removed successfully from your profile and database container.",
+        "skills_affected": affected,
+        "deleted_id": skill_identifier,
+    }
+
+
+
+
 # ---------------------------------------------------------------------
 # Validation — never trust the frontend's extension/content-type alone.
 # ---------------------------------------------------------------------

@@ -20,16 +20,22 @@ class FakeResult:
 
 class FakeQuery:
     def __init__(self, table_data: list[dict], table_name: str, db: "FakeDB"):
-        self._rows = list(table_data)
         self._table_name = table_name
         self._db = db
-        self._filters: list[tuple[str, str]] = []
+        self._filters: list[tuple[str, object]] = []
+        self._in_filters: list[tuple[str, list]] = []
         self._select_cols = None
         self._single = False
         self._order_col = None
         self._order_desc = False
         self._limit = None
         self._count_mode = None
+        self._is_delete = False
+        self._update_vals = None
+        self.not_ = SimpleNamespace(is_=self._not_is)
+
+    def _not_is(self, col, val):
+        return self
 
     def select(self, cols, count=None):
         self._select_cols = cols
@@ -40,7 +46,36 @@ class FakeQuery:
         self._filters.append((col, val))
         return self
 
+    def in_(self, col, vals):
+        self._in_filters.append((col, list(vals)))
+        return self
+
+    def ilike(self, col, val):
+        # Case-insensitive match in mock
+        clean_val = str(val).strip("%")
+        self._filters.append((col, clean_val))
+        return self
+
+    def delete(self):
+        self._is_delete = True
+        return self
+
+    def update(self, vals):
+        self._update_vals = vals
+        return self
+
+    def insert(self, rows):
+        if isinstance(rows, dict):
+            rows = [rows]
+        for row in rows:
+            self._db.tables.setdefault(self._table_name, []).append(dict(row))
+        return FakeExecuteWrapper(FakeResult(data=rows))
+
     def single(self):
+        self._single = True
+        return self
+
+    def maybe_single(self):
         self._single = True
         return self
 
@@ -60,30 +95,42 @@ class FakeQuery:
             self._db.upsert_row(self._table_name, row, on_conflict)
         return FakeExecuteWrapper(FakeResult(data=rows))
 
-    def _apply_filters(self):
-        rows = self._rows
+    def _matches_filters(self, r: dict) -> bool:
         for col, val in self._filters:
-            rows = [r for r in rows if r.get(col) == val]
-        return rows
-
-    def _resolve_relations(self, row: dict) -> dict:
-        """Resolve nested selects like skills(name, skill_categories(name))
-        using the fake DB's other tables, based on *_id foreign keys present
-        on the row. Good enough for our fixture data shapes."""
-        return self._db.resolve(self._table_name, row)
+            if r.get(col) != val:
+                return False
+        for col, vals in self._in_filters:
+            if r.get(col) not in vals:
+                return False
+        return True
 
     def execute(self):
-        rows = self._apply_filters()
+        table_rows = self._db.tables.get(self._table_name, [])
+        if self._is_delete:
+            matched = [r for r in table_rows if self._matches_filters(r)]
+            self._db.tables[self._table_name] = [r for r in table_rows if not self._matches_filters(r)]
+            return FakeResult(data=matched)
+
+        if self._update_vals:
+            matched = []
+            for r in table_rows:
+                if self._matches_filters(r):
+                    r.update(self._update_vals)
+                    matched.append(dict(r))
+            return FakeResult(data=matched)
+
+        rows = [r for r in table_rows if self._matches_filters(r)]
         if self._order_col:
             rows = sorted(rows, key=lambda r: (r.get(self._order_col) is None, r.get(self._order_col)),
                           reverse=self._order_desc)
         if self._limit is not None:
             rows = rows[: self._limit]
-        resolved = [self._resolve_relations(dict(r)) for r in rows]
-        count = len(self._apply_filters()) if self._count_mode else None
+        resolved = [self._db.resolve(self._table_name, dict(r)) for r in rows]
+        count = len(rows) if self._count_mode else None
         if self._single:
             return FakeResult(data=resolved[0] if resolved else None, count=count)
         return FakeResult(data=resolved, count=count)
+
 
 
 class FakeExecuteWrapper:
@@ -150,11 +197,45 @@ class FakeDB:
 class FakeAuth:
     def __init__(self, user_id: str):
         self._user_id = user_id
+        self.admin = SimpleNamespace(
+            update_user_by_id=lambda uid, attributes=None, **kwargs: {
+                "id": uid,
+                "user_metadata": (attributes or {}).get("user_metadata", {})
+            }
+        )
 
     def get_user(self, token: str):
         if token != "valid-student-token":
             raise Exception("invalid token")
         return SimpleNamespace(user=SimpleNamespace(id=self._user_id))
+
+
+class FakeStorageBucket:
+    def __init__(self, name: str):
+        self.name = name
+        self.files = {}
+
+    def upload(self, path, file_bytes, options=None):
+        self.files[path] = file_bytes
+        return {"Key": path}
+
+    def remove(self, paths):
+        for p in paths:
+            self.files.pop(p, None)
+        return [{"name": p} for p in paths]
+
+    def create_signed_url(self, path, expires_in):
+        return {"signedURL": f"https://mock-storage.local/{self.name}/{path}?token=mock"}
+
+
+class FakeStorage:
+    def __init__(self):
+        self.buckets = {}
+
+    def from_(self, bucket_name: str) -> FakeStorageBucket:
+        if bucket_name not in self.buckets:
+            self.buckets[bucket_name] = FakeStorageBucket(bucket_name)
+        return self.buckets[bucket_name]
 
 
 class FakeClient:
@@ -164,6 +245,7 @@ class FakeClient:
         self._db = db
         self.auth = FakeAuth(user_id)
         self.postgrest = SimpleNamespace(auth=lambda token: None)
+        self.storage = FakeStorage()
 
     def table(self, name: str) -> FakeQuery:
         return self._db.table(name)
@@ -178,13 +260,31 @@ def build_mock_dataset() -> dict:
         "students": [
             {
                 "id": "student-1",
-                "resume_url": "student-documents/student-1/resume.pdf",
+                "resume_url": "student-1/resumes/resume-1.pdf",
                 "linkedin_url": "https://linkedin.com/in/asha",
                 "github_url": "https://github.com/asha",
                 "portfolio_url": None,
                 "bio": "Final year CSE student interested in backend + ML.",
                 "domain_id": "domain-cs",
+                "subdomain_id": None,
+                "interest_id": None,
                 "is_placed": False,
+                "onboarding_completed": True,
+            }
+        ],
+        "resume_processing_jobs": [
+            {
+                "id": "job-1",
+                "resume_id": "resume-1",
+                "student_id": "student-1",
+                "storage_path": "student-1/resumes/resume-1.pdf",
+                "file_name": "Asha_Resume.pdf",
+                "file_type": "pdf",
+                "file_size": 102400,
+                "status": "completed",
+                "extracted_text": "Python SQL developer",
+                "created_at": "2026-02-01T12:00:00Z",
+                "updated_at": "2026-02-01T12:00:00Z",
             }
         ],
         "academic_records": [
@@ -197,7 +297,7 @@ def build_mock_dataset() -> dict:
                 "student_id": "student-1",
                 "title": "AWS Cloud Practitioner",
                 "issuing_organization": "Amazon Web Services",
-                "credential_url": "https://aws.amazon.com",
+                "credential_url": "student-1/proofs/aws_cert.pdf",
                 "is_verified": True,
                 "created_at": "2026-01-15T10:00:00Z",
             },
@@ -234,6 +334,7 @@ def build_mock_dataset() -> dict:
         ],
         "recommendations": [],
         "skill_gaps": [],
+        "student_projects": [],
     }
 
 

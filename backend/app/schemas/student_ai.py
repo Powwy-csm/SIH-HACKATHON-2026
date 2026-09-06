@@ -21,14 +21,54 @@ class AcademicSummary(BaseModel):
     attendance_percentage: float | None = None
 
 
+class SkillItem(BaseModel):
+    skill_id: str
+    skill_name: str
+    category_name: str | None = None
+    proficiency: str | None = None
+    proficiency_score: float = 0
+    is_verified: bool = False
+    source: str | None = None
+    evidence_url: str | None = None
+
+
+class AcademicRecord(BaseModel):
+    semester: int | None = None
+    cgpa_till_date: float | None = None
+    backlogs: int | None = None
+    attendance_percentage: float | None = None
+
+
+class ProjectItem(BaseModel):
+    id: str
+    student_id: str
+    title: str
+    description: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    tags: list[str] = []
+    project_url: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
 class ProfileAnalysisResponse(BaseModel):
     profile_completeness: int
     trust_score: float
-    verified_skills: list[VerifiedSkill]
-    unverified_skills: list[UnverifiedSkill]
-    skills_by_category: dict[str, list[str]]
-    academic_summary: AcademicSummary
-    certifications_count: int
+    # Domain hierarchy
+    bio: str | None = None
+    domain: str | None = None
+    domain_id: str | None = None
+    subdomain: str | None = None
+    subdomain_id: str | None = None
+    interest: str | None = None
+    interest_id: str | None = None
+    # Skills — full list, each entry has source/score info
+    skills: list[SkillItem] = []
+    verified_skills: list[VerifiedSkill] = []
+    skills_by_category: dict[str, list[str]] = {}
+    projects: list[ProjectItem] = []
+    academic_record: AcademicRecord | None = None
+    certifications_count: int = 0
 
 
 class TopRecommendation(BaseModel):

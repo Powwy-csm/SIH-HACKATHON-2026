@@ -5,10 +5,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
 from app.deps.auth import CurrentStudent, get_current_student
 from app.deps.supabase_clients import get_service_client
 from app.schemas.resume import (
+    DeleteItemResponse,
     DocumentVerificationResponse,
     InternshipMatchItem,
     InternshipMatchSkill,
     ResumeIntelligenceResponse,
+    ResumeListItem,
     ResumeSkillItem,
     ResumeStatusResponse,
     ResumeUploadResponse,
@@ -56,6 +58,35 @@ async def upload_resume(
     return ResumeUploadResponse(**data)
 
 
+@router.get("/list", response_model=list[ResumeListItem])
+def list_resumes(
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """List all uploaded resumes for the current student."""
+    return resume_service.list_student_resumes(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+    )
+
+
+
+@router.post("/select-active/{resume_id}")
+def select_active_resume(
+    resume_id: str,
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Set an uploaded resume as the active resume."""
+    return resume_service.select_active_resume(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        resume_id=resume_id,
+    )
+
+
 @router.get("/latest", response_model=ResumeStatusResponse)
 def get_latest_resume(
     current: CurrentStudent = Depends(get_current_student),
@@ -88,6 +119,7 @@ def get_resume_intelligence(
 
     skills = [
         ResumeSkillItem(
+            skill_id=row.get("skill_id"),
             raw_skill_name=row["skill_name"],
             normalized_skill_name=row["skill_name"],
             matched_skill_name=row["skill_name"],
@@ -148,20 +180,121 @@ async def verify_document(
 @router.get("/documents", response_model=list[StudentDocumentItem])
 def get_student_documents(
     current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
 ):
-    """List uploaded supporting proof documents and the skills they verify."""
+    """List uploaded supporting proof documents and the skills they verify with preview URLs."""
+    from app.config import get_settings
+    cfg = get_settings()
+
     certs = repo.fetch_student_certifications(current.client, current.student_id)
     skills = repo.fetch_student_skills(current.client, current.student_id)
 
-    verified_skill_names = [s["skill_name"] for s in skills if s.get("is_verified")]
+    out = []
+    for c in certs:
+        cred = c.get("credential_url")
+        file_url = None
+        if cred:
+            if cred.startswith("http"):
+                file_url = cred
+            else:
+                file_url = repo.create_resume_signed_url(
+                    service_client,
+                    cfg.SUPABASE_STORAGE_BUCKET,
+                    cred,
+                    cfg.RESUME_SIGNED_URL_EXPIRY_SECONDS,
+                )
 
-    return [
-        StudentDocumentItem(
-            id=c.get("id", ""),
-            title=c.get("title", "Document"),
-            file_name=c.get("title", "Document"),
-            created_at=str(c.get("created_at") or ""),
-            skills_verified=verified_skill_names,
+        doc_skills = []
+        for s in skills:
+            ev = s.get("evidence_url") or ""
+            if cred and (ev == cred or cred in ev or (ev and ev in cred)) and s.get("is_verified"):
+                doc_skills.append(s["skill_name"])
+
+        # If no specific evidence_url match (legacy data or seeded records), fall back to verified skills
+        if not doc_skills:
+            doc_skills = [s["skill_name"] for s in skills if s.get("is_verified")]
+
+        ext = (c.get("title") or "").split(".")[-1].lower() if "." in (c.get("title") or "") else "pdf"
+
+        out.append(
+            StudentDocumentItem(
+                id=c.get("id", ""),
+                title=c.get("title", "Document"),
+                file_name=c.get("title", "Document"),
+                file_type=ext,
+                file_url=file_url,
+                storage_path=cred,
+                created_at=str(c.get("created_at") or ""),
+                skills_verified=doc_skills,
+            )
         )
-        for c in certs
-    ]
+    return out
+
+
+@router.delete("/documents/{document_id}", response_model=DeleteItemResponse)
+def delete_document(
+    document_id: str,
+    delete_skills: bool = True,
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Delete a certificate/proof document by ID, removing its file from Supabase storage and reverting/cleaning up corroborated skills."""
+    return resume_service.delete_student_document(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        cert_id=document_id,
+        delete_skills=delete_skills,
+    )
+
+
+@router.delete("/skills", response_model=DeleteItemResponse)
+def clear_student_skills(
+    scope: str = "unverified",
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Clear student skills from profile and database container.
+    scope='unverified' (default): removes unverified AI resume claims while keeping verified credentials safe.
+    scope='all': removes all skills (verified and unverified).
+    """
+    return resume_service.clear_student_skills_service(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        scope=scope,
+    )
+
+
+@router.delete("/skills/{skill_identifier}", response_model=DeleteItemResponse)
+def delete_single_skill(
+    skill_identifier: str,
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Delete an individual skill from student profile and database container by its skill_id UUID or skill name."""
+    return resume_service.delete_single_student_skill_service(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        skill_identifier=skill_identifier,
+    )
+
+
+@router.delete("/{resume_id}", response_model=DeleteItemResponse)
+def delete_resume(
+    resume_id: str,
+    delete_skills: bool = True,
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Delete a resume by ID, removing its file from Supabase storage and cleaning up extracted unverified skills."""
+    return resume_service.delete_student_resume(
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        resume_id=resume_id,
+        delete_skills=delete_skills,
+    )
+
+

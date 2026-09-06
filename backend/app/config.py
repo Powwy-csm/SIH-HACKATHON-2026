@@ -86,7 +86,7 @@ class Settings:
     # Gemini-specific settings. Only read/used when AI_PROVIDER=gemini.
     GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
     GEMINI_SKILL_EXTRACTION_MODEL: str = os.environ.get("GEMINI_SKILL_EXTRACTION_MODEL", "gemini-3.5-flash")
-    GEMINI_EMBEDDING_MODEL: str = os.environ.get("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
+    GEMINI_EMBEDDING_MODEL: str = os.environ.get("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
 
     # MUST match the `vector(N)` dimension in supabase/07_ai_embeddings.sql
     # (student_embeddings.embedding). 768 is correct for Gemini's

@@ -1,4 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import {
+  getSavedResumeAnalysis,
+  saveResumeAnalysis,
+  clearResumeAnalysis,
+  isResumeAnalyzed,
+} from '../../utils/resumeSkillsStorage';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const POLL_INTERVAL_MS = 2500;
@@ -87,7 +94,8 @@ function normalizeSkills(payload) {
       name: skillName || 'Unknown skill',
       confidence: Math.max(0, Math.min(100, confidence)),
       category: item.category || item.skill_type || (isVerified ? 'Verified Credential' : item.source === 'ai_estimated' ? 'Resume Claim' : item.source) || 'Skill',
-      id: item.id || `${skillName || index}-${index}`,
+      skillId: item.skill_id || item.skillId || item.id,
+      id: item.skill_id || item.id || `${skillName || index}-${index}`,
       isVerified,
       evidenceUrl: item.evidence_url || null,
       source: item.source || (isVerified ? 'document_verified' : 'ai_estimated'),
@@ -133,17 +141,36 @@ function getFileIcon(filename = '') {
 }
 
 export default function StudentResume() {
+  const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
   const inputRef = useRef(null);
   const proofInputRef = useRef(null);
   const pollingRef = useRef(null);
 
-  // Resume state
+  // Resume state - initialized from localStorage if already analyzed
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [skills, setSkills] = useState([]);
-  const [matches, setMatches] = useState([]);
+  const [status, setStatus] = useState(() => {
+    const saved = getSavedResumeAnalysis(user?.id);
+    if (saved?.resumeId) {
+      return {
+        resume_id: saved.resumeId,
+        file_name: saved.fileName,
+        file_size: saved.fileSize,
+        status: saved.status,
+      };
+    }
+    return null;
+  });
+  const [skills, setSkills] = useState(() => {
+    const saved = getSavedResumeAnalysis(user?.id);
+    return saved?.skills || [];
+  });
+  const [matches, setMatches] = useState(() => {
+    const saved = getSavedResumeAnalysis(user?.id);
+    return saved?.matches || [];
+  });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -157,8 +184,36 @@ export default function StudentResume() {
   const [proofResult, setProofResult] = useState(null);
   const [documents, setDocuments] = useState([]);
 
+  // Uploaded resumes list & deletion state
+  const [resumes, setResumes] = useState([]);
+  const [confirmDeleteResume, setConfirmDeleteResume] = useState(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState(null);
+  const [deleteResumeSkills, setDeleteResumeSkills] = useState(true);
+  const [deleteDocSkills, setDeleteDocSkills] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
   // Filter state for skills view
   const [skillFilter, setSkillFilter] = useState('all'); // 'all' | 'verified' | 'unverified'
+  const [showClearSkillsModal, setShowClearSkillsModal] = useState(false);
+  const [clearScope, setClearScope] = useState('unverified'); // 'unverified' | 'all'
+  const [skillDeletingId, setSkillDeletingId] = useState(null);
+
+  // Sync state with localStorage if user changes or completes auth loading
+  useEffect(() => {
+    if (user?.id) {
+      const saved = getSavedResumeAnalysis(user.id);
+      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
+        setSkills(saved.skills);
+        setMatches(saved.matches || []);
+        setStatus(prev => prev || {
+          resume_id: saved.resumeId,
+          file_name: saved.fileName,
+          file_size: saved.fileSize,
+          status: saved.status,
+        });
+      }
+    }
+  }, [user?.id]);
 
   const clearPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -168,7 +223,7 @@ export default function StudentResume() {
   }, []);
 
   const apiFetch = useCallback(async (path, options = {}) => {
-    const accessToken = getAccessToken();
+    const accessToken = authContextToken || getAccessToken();
     if (!accessToken) {
       const authError = new Error('Your BridgeX session is not connected to the API yet. Sign in with the Supabase-backed student account before uploading a resume.');
       authError.code = 'NO_TOKEN';
@@ -179,58 +234,132 @@ export default function StudentResume() {
     headers.set('Authorization', `Bearer ${accessToken}`);
     if (!(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
 
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-    let payload = null;
-    try { payload = await response.json(); } catch { /* Empty response */ }
-
-    if (!response.ok) {
-      const detail = payload?.detail || payload?.message || `Request failed (${response.status})`;
-      const requestError = new Error(detail);
-      requestError.status = response.status;
-      throw requestError;
+    let controller = null;
+    let timer = null;
+    let signal = options.signal;
+    if (!signal && !(options.body instanceof FormData)) {
+      controller = new AbortController();
+      signal = controller.signal;
+      const timeoutMs = options.timeoutMs || 5000;
+      timer = setTimeout(() => controller.abort(), timeoutMs);
     }
-    return payload;
-  }, []);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal });
+      if (timer) clearTimeout(timer);
+      let payload = null;
+      try { payload = await response.json(); } catch { /* Empty response */ }
+
+      if (!response.ok) {
+        const detail = payload?.detail || payload?.message || `Request failed (${response.status})`;
+        const requestError = new Error(detail);
+        requestError.status = response.status;
+        throw requestError;
+      }
+      return payload;
+    } catch (err) {
+      if (timer) clearTimeout(timer);
+      throw err;
+    }
+  }, [authContextToken]);
 
   const loadIntelligence = useCallback(async (showSpinner = true) => {
-    if (showSpinner) setLoading(true);
+    const studentId = user?.id;
+    const saved = getSavedResumeAnalysis(studentId);
+
+    // If local cache exists, display immediately with zero waiting
+    if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
+      setSkills(saved.skills);
+      setMatches(saved.matches || []);
+      if (saved.fileName) {
+        setStatus(prev => prev || {
+          resume_id: saved.resumeId,
+          file_name: saved.fileName,
+          file_size: saved.fileSize,
+          status: saved.status || 'completed',
+          processing_status: saved.status || 'completed',
+        });
+      }
+      if (showSpinner) setLoading(false);
+    } else if (showSpinner) {
+      setLoading(true);
+    }
+
     try {
-      const latest = await apiFetch('/api/resume/latest');
-      const latestData = unwrapPayload(latest);
-      setStatus(latestData);
-
-      const intelligence = await apiFetch('/api/resume/intelligence');
-      setSkills(normalizeSkills(intelligence));
-      setMatches(normalizeMatches(intelligence));
-
-      // Fetch uploaded supporting proof documents
+      // 1. Fetch lightweight status and file metadata from backend
+      let latestData = null;
       try {
-        const docsData = await apiFetch('/api/resume/documents');
+        const latest = await apiFetch('/api/resume/latest', { timeoutMs: 3000 });
+        latestData = unwrapPayload(latest);
+        if (latestData && (latestData.resume_id || latestData.file_name)) {
+          setStatus(latestData);
+        }
+      } catch {
+        // Status fetch failure does not block UI
+      }
+
+      // 2. Fetch uploaded resumes list
+      let rList = [];
+      try {
+        const resumesData = await apiFetch('/api/resume/list', { timeoutMs: 3000 });
+        rList = Array.isArray(resumesData) ? resumesData : (resumesData?.data || []);
+        setResumes(rList);
+      } catch {
+        // Continue gracefully
+      }
+
+      // 3. Fetch uploaded supporting proof documents
+      try {
+        const docsData = await apiFetch('/api/resume/documents', { timeoutMs: 3000 });
         const docs = Array.isArray(docsData) ? docsData : (docsData?.documents || []);
         setDocuments(docs);
       } catch {
-        // Continue even if documents fetch fails gracefully
+        // Continue gracefully
+      }
+
+      const activeResumeId = latestData?.resume_id || (rList.length > 0 ? (rList[0].resume_id || rList[0].id) : null);
+
+      // 4. Only if local storage is empty and there is an active completed resume, fetch intelligence once
+      const hasSavedSkills = saved && Array.isArray(saved.skills) && saved.skills.length > 0;
+      const jobStatus = String(latestData?.processing_status || latestData?.status || '').toLowerCase();
+      if (!hasSavedSkills && activeResumeId && (jobStatus.includes('complete') || jobStatus.includes('success'))) {
+        try {
+          const intelligence = await apiFetch('/api/resume/intelligence', { timeoutMs: 4500 });
+          const normSkills = normalizeSkills(intelligence);
+          const normMatches = normalizeMatches(intelligence);
+          if (normSkills.length > 0) {
+            setSkills(normSkills);
+            setMatches(normMatches);
+
+            saveResumeAnalysis(studentId, {
+              resumeId: activeResumeId,
+              fileName: latestData?.file_name || (rList.find(r => (r.resume_id || r.id) === activeResumeId)?.file_name) || 'resume.pdf',
+              fileSize: latestData?.file_size || 0,
+              status: 'completed',
+              skills: normSkills,
+              matches: normMatches,
+            });
+          }
+        } catch {
+          // Non-blocking
+        }
       }
 
       setError('');
     } catch (err) {
       if (err.code !== 'NO_TOKEN' && err.status !== 404) setError(err.message || 'Unable to load resume intelligence.');
-      if (err.status === 404) {
-        setSkills([]);
-        setMatches([]);
-        setStatus(null);
-      }
     } finally {
       if (showSpinner) setLoading(false);
     }
-  }, [apiFetch]);
+  }, [apiFetch, user?.id]);
 
   useEffect(() => {
+    if (authLoading) return;
     loadIntelligence(true);
     return clearPolling;
-  }, [loadIntelligence, clearPolling]);
+  }, [authLoading, loadIntelligence, clearPolling]);
 
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((uploadedResumeId = null, uploadedFileName = null, uploadedFileSize = 0) => {
     clearPolling();
     let attempts = 0;
     pollingRef.current = window.setInterval(async () => {
@@ -243,6 +372,28 @@ export default function StudentResume() {
         const done = state.includes('complete') || state.includes('success') || state.includes('failed') || state.includes('error');
         if (done || attempts >= 24) {
           clearPolling();
+          if (state.includes('complete') || state.includes('success')) {
+            // Retrieve the extracted skills once from backend and save locally
+            const intelligence = await apiFetch('/api/resume/intelligence');
+            const normSkills = normalizeSkills(intelligence);
+            const normMatches = normalizeMatches(intelligence);
+            setSkills(normSkills);
+            setMatches(normMatches);
+
+            const rid = uploadedResumeId || latestData?.resume_id;
+            const fname = uploadedFileName || latestData?.file_name || 'resume.pdf';
+            saveResumeAnalysis(user?.id, {
+              resumeId: rid,
+              fileName: fname,
+              fileSize: uploadedFileSize || latestData?.file_size || 0,
+              status: 'completed',
+              skills: normSkills,
+              matches: normMatches,
+            });
+            setNotice('Resume analyzed successfully! Skills extracted and saved locally.');
+          } else if (state.includes('failed') || state.includes('error')) {
+            setError(latestData?.processing_error || 'Resume analysis failed. Please try again or re-analyze.');
+          }
           await loadIntelligence(false);
         }
       } catch (err) {
@@ -250,7 +401,31 @@ export default function StudentResume() {
         setError(err.message || 'Unable to refresh resume processing status.');
       }
     }, POLL_INTERVAL_MS);
-  }, [apiFetch, clearPolling, loadIntelligence]);
+  }, [apiFetch, clearPolling, loadIntelligence, user?.id]);
+
+  const handleReanalyzeResume = useCallback(async (targetResumeId = null) => {
+    const resumeId = targetResumeId || status?.resume_id || (resumes.length > 0 ? (resumes[0]?.resume_id || resumes[0]?.id) : null);
+    if (!resumeId) {
+      setError('No uploaded resume found to re-analyze.');
+      return;
+    }
+
+    setReanalyzing(true);
+    setError('');
+    setNotice('Initiating explicit AI re-analysis on selected resume...');
+    try {
+      await apiFetch('/api/resume/reanalyze', {
+        method: 'POST',
+        body: { resume_id: resumeId },
+      });
+      setNotice('AI re-analysis in progress. Extracting skills and matching opportunities...');
+      startPolling(resumeId);
+    } catch (err) {
+      setError(err.message || 'Unable to re-analyze resume.');
+    } finally {
+      setReanalyzing(false);
+    }
+  }, [apiFetch, status, resumes, startPolling]);
 
   const validateResumeFile = (candidate) => {
     if (!candidate) return 'Please choose a PDF resume.';
@@ -265,6 +440,11 @@ export default function StudentResume() {
     setNotice('');
     if (validationError) return;
     setFile(candidate);
+
+    const saved = getSavedResumeAnalysis(user?.id);
+    if (saved && (saved.fileName === candidate.name || saved.fileSize === candidate.size)) {
+      setNotice(`Notice: "${candidate.name}" has already been analyzed. Saved skills are ready below.`);
+    }
   };
 
   const handleResumeUpload = async () => {
@@ -273,20 +453,34 @@ export default function StudentResume() {
       return;
     }
 
+    // Check if the exact same resume is already analyzed and stored locally
+    const saved = getSavedResumeAnalysis(user?.id);
+    if (saved && saved.fileName === file.name && saved.skills?.length > 0 && resumes.some(r => r.file_name === file.name)) {
+      setNotice(`Reusing existing analysis for "${file.name}". Skills loaded instantly from local storage.`);
+      setSkills(saved.skills);
+      setMatches(saved.matches || []);
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
     setUploading(true);
     setError('');
-    setNotice('Uploading your resume securely. AI analysis will continue in the background.');
+    setNotice('Uploading your resume securely. AI analysis will run once in the background.');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
+      const currentFileName = file.name;
+      const currentFileSize = file.size;
       const result = await apiFetch('/api/resume/upload', { method: 'POST', body: formData });
-      setStatus(unwrapPayload(result));
-      setNotice('Resume uploaded. We are extracting skills and matching internships in the background.');
+      const uploadData = unwrapPayload(result);
+      setStatus(uploadData);
+      setNotice('Resume uploaded. Extracting skills and matching internships in the background.');
       setFile(null);
       if (inputRef.current) inputRef.current.value = '';
-      await loadIntelligence(false);
-      startPolling();
+      const currentResumeId = uploadData?.resume_id || uploadData?.id;
+      startPolling(currentResumeId, currentFileName, currentFileSize);
     } catch (err) {
       setError(err.message || 'Resume upload failed. Please try again.');
       setNotice('');
@@ -344,6 +538,130 @@ export default function StudentResume() {
       setProofNotice('');
     } finally {
       setProofUploading(false);
+    }
+  };
+
+  const handleDeleteResume = async () => {
+    if (!confirmDeleteResume) return;
+    setActionLoading(true);
+    setError('');
+    try {
+      await apiFetch(`/api/resume/${confirmDeleteResume.resume_id}?delete_skills=${deleteResumeSkills}`, {
+        method: 'DELETE',
+      });
+      // Clear analysis from localStorage
+      clearResumeAnalysis(user?.id, confirmDeleteResume.resume_id);
+      setNotice(`Resume "${confirmDeleteResume.file_name}" removed from Supabase storage and database.`);
+      setConfirmDeleteResume(null);
+      await loadIntelligence(false);
+    } catch (err) {
+      setError(err.message || 'Failed to remove resume.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSelectActiveResume = async (resumeId) => {
+    setActionLoading(true);
+    setError('');
+    try {
+      await apiFetch(`/api/resume/select-active/${resumeId}`, { method: 'POST' });
+      setNotice('Active resume updated.');
+      // Check if this resume was previously analyzed and stored locally
+      const saved = getSavedResumeAnalysis(user?.id, resumeId);
+      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
+        setSkills(saved.skills);
+        setMatches(saved.matches || []);
+        setStatus(prev => ({
+          ...(prev || {}),
+          resume_id: resumeId,
+          file_name: saved.fileName,
+          status: saved.status,
+        }));
+        saveResumeAnalysis(user?.id, saved);
+      } else {
+        await loadIntelligence(false);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update active resume.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!confirmDeleteDoc) return;
+    setActionLoading(true);
+    setProofError('');
+    try {
+      await apiFetch(`/api/resume/documents/${confirmDeleteDoc.id}?delete_skills=${deleteDocSkills}`, {
+        method: 'DELETE',
+      });
+      setProofNotice(`Certificate "${confirmDeleteDoc.title || confirmDeleteDoc.file_name}" removed from Supabase storage.`);
+      setConfirmDeleteDoc(null);
+      await loadIntelligence(false);
+    } catch (err) {
+      setProofError(err.message || 'Failed to remove certificate.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClearSkills = async () => {
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await apiFetch(`/api/resume/skills?scope=${clearScope}`, {
+        method: 'DELETE',
+      });
+      const data = unwrapPayload(res);
+      setNotice(data.message || 'Skills removed successfully.');
+      setShowClearSkillsModal(false);
+
+      if (clearScope === 'all') {
+        clearResumeAnalysis(user?.id);
+        setSkills([]);
+      } else {
+        const verifiedOnly = skills.filter(s => s.isVerified);
+        setSkills(verifiedOnly);
+        const currentSaved = getSavedResumeAnalysis(user?.id);
+        if (currentSaved) {
+          saveResumeAnalysis(user?.id, { ...currentSaved, skills: verifiedOnly });
+        }
+      }
+
+      await loadIntelligence(false);
+    } catch (err) {
+      setError(err.message || 'Failed to clear skills.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteSingleSkill = async (skill) => {
+    if (!skill) return;
+    const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str || '');
+    const identifier = isUUID(skill.skillId) ? skill.skillId : (isUUID(skill.id) ? skill.id : skill.name);
+    setSkillDeletingId(skill.id);
+    setError('');
+    try {
+      await apiFetch(`/api/resume/skills/${encodeURIComponent(identifier)}`, {
+        method: 'DELETE',
+      });
+      setNotice(`Removed "${skill.name}" from your skills profile.`);
+      setSkills(prev => {
+        const updated = prev.filter(s => s.id !== skill.id && s.name !== skill.name);
+        const currentSaved = getSavedResumeAnalysis(user?.id);
+        if (currentSaved) {
+          saveResumeAnalysis(user?.id, { ...currentSaved, skills: updated });
+        }
+        return updated;
+      });
+      await loadIntelligence(false);
+    } catch (err) {
+      setError(err.message || `Failed to remove skill "${skill.name}".`);
+    } finally {
+      setSkillDeletingId(null);
     }
   };
 
@@ -535,6 +853,56 @@ export default function StudentResume() {
           color: #15803D;
         }
 
+        .skill-remove-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          margin-left: 2px;
+          border-radius: 50%;
+          border: none;
+          background: rgba(148, 163, 184, 0.2);
+          color: #64748B;
+          cursor: pointer;
+          font-size: 11px;
+          padding: 0;
+          transition: all 0.15s ease;
+        }
+        .skill-remove-btn:hover {
+          background: #FEE2E2;
+          color: #EF4444;
+          transform: scale(1.1);
+        }
+        .intel-skill.is-verified .skill-remove-btn {
+          background: rgba(22, 163, 74, 0.15);
+          color: #15803D;
+        }
+        .intel-skill.is-verified .skill-remove-btn:hover {
+          background: #FEE2E2;
+          color: #DC2626;
+        }
+
+        .btn-clear-skills {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 13px;
+          border-radius: 9px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #DC2626;
+          border: 1px solid #FECACA;
+          background: #FEF2F2;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .btn-clear-skills:hover {
+          background: #FEE2E2;
+          border-color: #FCA5A5;
+          transform: translateY(-1px);
+        }
+
         .empty-state { text-align:center; padding:32px 20px; color:#64748B; }
         .empty-state i { display:block; font-size:32px; color:#94A3B8; margin-bottom:10px; }
 
@@ -577,6 +945,115 @@ export default function StudentResume() {
           border-radius:6px;
           border:1px solid #A7F3D0;
         }
+
+        .item-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .btn-action-icon {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+          transition: 0.15s ease;
+          border: 1px solid transparent;
+        }
+        .btn-preview {
+          background: #EFF6FF;
+          color: #2563EB;
+          border-color: #BFDBFE;
+        }
+        .btn-preview:hover {
+          background: #DBEAFE;
+        }
+        .btn-delete {
+          background: #FEF2F2;
+          color: #DC2626;
+          border-color: #FECACA;
+        }
+        .btn-delete:hover:not(:disabled) {
+          background: #FEE2E2;
+          border-color: #F87171;
+        }
+        .btn-set-active {
+          background: #F1F5F9;
+          color: #475569;
+          border-color: #CBD5E1;
+        }
+        .btn-set-active:hover:not(:disabled) {
+          background: #E2E8F0;
+          color: #0F172A;
+        }
+        .active-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #ECFDF5;
+          color: #059669;
+          border: 1px solid #A7F3D0;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 6px;
+        }
+
+        .danger-btn { background: #DC2626 !important; color: #fff !important; }
+        .danger-btn:hover:not(:disabled) { background: #B91C1C !important; }
+
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.65);
+          backdrop-filter: blur(4px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+        .modal-box {
+          background: #fff;
+          border-radius: 20px;
+          max-width: 480px;
+          width: 100%;
+          padding: 28px;
+          box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+          border: 1px solid #E2E8F0;
+          animation: modalPop 0.18s ease-out;
+        }
+        @keyframes modalPop {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .modal-icon {
+          width: 46px;
+          height: 46px;
+          border-radius: 14px;
+          display: grid;
+          place-items: center;
+          font-size: 22px;
+          margin-bottom: 16px;
+        }
+        .modal-icon.danger { background: #FEE2E2; color: #DC2626; }
+        .modal-box h3 { margin: 0 0 8px; font-size: 19px; color: #0F172A; font-weight: 700; }
+        .modal-box p { margin: 0 0 16px; font-size: 14px; color: #64748B; line-height: 1.5; }
+        .modal-checkbox-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
+          margin-bottom: 22px;
+          font-size: 13px;
+          color: #334155;
+          cursor: pointer;
+        }
+        .modal-checkbox-row input { cursor: pointer; width: 16px; height: 16px; accent-color: #2563EB; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
         .match-list { display:grid; gap:14px; }
         .match-item { border:1px solid #E2E8F0; border-radius:14px; padding:18px; background:#fff; transition:.15s ease; }
@@ -639,6 +1116,10 @@ export default function StudentResume() {
             <span className="lbl">Total Skills</span>
           </div>
           <div className="stat-badge">
+            <span className="val">{resumes.length}</span>
+            <span className="lbl">Resumes</span>
+          </div>
+          <div className="stat-badge">
             <span className="val">{documents.length}</span>
             <span className="lbl">Credentials</span>
           </div>
@@ -687,9 +1168,22 @@ export default function StudentResume() {
 
           <div className="upload-actions">
             <span className="helper">PDF only · max 10 MB</span>
-            <button className="resume-button primary" type="button" disabled={!file || uploading} onClick={handleResumeUpload}>
-              {uploading ? <><span className="spinner"></span> Uploading...</> : <><i className="ph ph-sparkle"></i> Analyze resume</>}
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {(status?.resume_id || resumes.length > 0) && (
+                <button
+                  className="resume-button secondary"
+                  type="button"
+                  disabled={reanalyzing || uploading || processing}
+                  onClick={() => handleReanalyzeResume()}
+                  title="Re-run AI extraction and opportunity matching on your current resume"
+                >
+                  {reanalyzing ? <><span className="spinner"></span> Re-analyzing...</> : <><i className="ph ph-arrow-counter-clockwise"></i> Re-analyze</>}
+                </button>
+              )}
+              <button className="resume-button primary" type="button" disabled={!file || uploading} onClick={handleResumeUpload}>
+                {uploading ? <><span className="spinner"></span> Uploading...</> : <><i className="ph ph-sparkle"></i> Analyze resume</>}
+              </button>
+            </div>
           </div>
 
           {notice && <div className="alert notice"><i className="ph-fill ph-info"></i><span>{notice}</span></div>}
@@ -760,22 +1254,125 @@ export default function StudentResume() {
         </section>
       </div>
 
-      {/* Proof Documents Log Section */}
-      {documents.length > 0 && (
-        <section className="documents-section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h2 style={{ fontSize: 18, margin: '0 0 4px', color: '#0F172A' }}>Verified Proof Documents ({documents.length})</h2>
-              <p style={{ margin: 0, fontSize: 13, color: '#64748B' }}>These supporting documents serve as tangible evidence corroborating your skill profile.</p>
+      {/* Uploaded Resumes Section */}
+      <section className="documents-section" style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ fontSize: 18, margin: 0, color: '#0F172A' }}>Uploaded Resumes ({resumes.length})</h2>
+              {resumes.length > 0 && <span style={{ fontSize: 12, background: '#DBEAFE', color: '#1D4ED8', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>Supabase Storage</span>}
             </div>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B' }}>
+              Resumes stored in your private storage container. Remove old resumes to delete their files and clear unverified skills.
+            </p>
           </div>
+        </div>
+
+        {resumes.length > 0 ? (
+          <div className="doc-list">
+            {resumes.map((resItem) => (
+              <div className="doc-item" key={resItem.resume_id}>
+                <div className="doc-item-left">
+                  <div className="doc-file-icon" style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                    <i className="ph-fill ph-file-pdf"></i>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="doc-title">{resItem.file_name}</span>
+                      {resItem.is_active && (
+                        <span className="active-pill">
+                          <i className="ph-fill ph-check-circle"></i> Active Resume
+                        </span>
+                      )}
+                    </div>
+                    <div className="doc-meta">
+                      <span>{(resItem.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+                      {resItem.uploaded_at && (
+                        <span>Uploaded {new Date(resItem.uploaded_at).toLocaleDateString()}</span>
+                      )}
+                      <span>Status: {resItem.extraction_status || 'analyzed'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className="btn-action-icon"
+                    onClick={() => handleReanalyzeResume(resItem.resume_id)}
+                    disabled={actionLoading || reanalyzing}
+                    title="Re-run AI extraction and opportunity matching on this resume"
+                  >
+                    <i className="ph ph-arrow-counter-clockwise"></i> Re-analyze
+                  </button>
+                  {!resItem.is_active && (
+                    <button
+                      type="button"
+                      className="btn-action-icon btn-set-active"
+                      onClick={() => handleSelectActiveResume(resItem.resume_id)}
+                      disabled={actionLoading}
+                      title="Make this resume the active profile source"
+                    >
+                      <i className="ph ph-check"></i> Set Active
+                    </button>
+                  )}
+                  {resItem.resume_url && (
+                    <a
+                      href={resItem.resume_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-action-icon btn-preview"
+                      title="Preview PDF"
+                    >
+                      <i className="ph ph-arrow-square-out"></i> Preview
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-action-icon btn-delete"
+                    onClick={() => setConfirmDeleteResume(resItem)}
+                    disabled={actionLoading}
+                    title="Remove from Supabase storage and database"
+                  >
+                    <i className="ph ph-trash"></i> Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state" style={{ padding: '24px 16px' }}>
+            <i className="ph ph-file-pdf" style={{ fontSize: 28, color: '#94A3B8', marginBottom: 6 }}></i>
+            <span style={{ fontSize: 13 }}>No resumes stored. Upload a PDF resume above to analyze and store it.</span>
+          </div>
+        )}
+      </section>
+
+      {/* Proof Documents Log Section */}
+      <section className="documents-section" style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ fontSize: 18, margin: 0, color: '#0F172A' }}>Verified Proof Documents ({documents.length})</h2>
+              {documents.length > 0 && <span style={{ fontSize: 12, background: '#D1FAE5', color: '#047857', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>Supabase Storage</span>}
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B' }}>
+              Supporting certificates that corroborate your skills. Remove certificates to delete them from storage and update corroborated skills.
+            </p>
+          </div>
+        </div>
+
+        {documents.length > 0 ? (
           <div className="doc-list">
             {documents.map((doc, idx) => (
               <div className="doc-item" key={doc.id || `doc-${idx}`}>
                 <div className="doc-item-left">
                   <div className="doc-file-icon"><i className={`ph-fill ${getFileIcon(doc.file_name || doc.title)}`}></i></div>
                   <div>
-                    <div className="doc-title">{doc.title || doc.file_name || 'Supporting Document'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="doc-title">{doc.title || doc.file_name || 'Supporting Document'}</span>
+                      <span className="doc-badge"><i className="ph-fill ph-seal-check"></i> Verified Proof</span>
+                    </div>
                     <div className="doc-meta">
                       <span>{doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'Verified'}</span>
                       {doc.skills_verified && doc.skills_verified.length > 0 && (
@@ -784,12 +1381,39 @@ export default function StudentResume() {
                     </div>
                   </div>
                 </div>
-                <span className="doc-badge"><i className="ph-fill ph-seal-check"></i> Verified Proof</span>
+
+                <div className="item-actions">
+                  {doc.file_url && (
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-action-icon btn-preview"
+                      title="Preview Document"
+                    >
+                      <i className="ph ph-arrow-square-out"></i> Preview
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-action-icon btn-delete"
+                    onClick={() => setConfirmDeleteDoc(doc)}
+                    disabled={actionLoading}
+                    title="Remove certificate from storage and update skills"
+                  >
+                    <i className="ph ph-trash"></i> Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="empty-state" style={{ padding: '24px 16px' }}>
+            <i className="ph ph-certificate" style={{ fontSize: 28, color: '#94A3B8', marginBottom: 6 }}></i>
+            <span style={{ fontSize: 13 }}>No proof documents uploaded yet. Upload a certificate above to corroborate your skills.</span>
+          </div>
+        )}
+      </section>
 
       {/* AI-Extracted & Verified Skills Card */}
       <section className="resume-card skills-card">
@@ -801,7 +1425,7 @@ export default function StudentResume() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div className="skill-filter-tabs">
               <button
                 type="button"
@@ -825,6 +1449,18 @@ export default function StudentResume() {
                 Resume Claims <span className="badge">{unverifiedSkills.length}</span>
               </button>
             </div>
+
+            {skills.length > 0 && (
+              <button
+                type="button"
+                className="btn-clear-skills"
+                onClick={() => setShowClearSkillsModal(true)}
+                title="Remove previously extracted skills from database"
+              >
+                <i className="ph ph-trash"></i>
+                Clear Skills
+              </button>
+            )}
           </div>
         </div>
 
@@ -837,6 +1473,22 @@ export default function StudentResume() {
                 <span className={`skill-confidence ${skill.isVerified ? 'verified-conf' : ''}`}>
                   {skill.isVerified ? `✓ ${skill.confidence}%` : `${skill.confidence}% claim`}
                 </span>
+                <button
+                  type="button"
+                  className="skill-remove-btn"
+                  title={`Remove ${skill.name} from profile`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSingleSkill(skill);
+                  }}
+                  disabled={skillDeletingId === skill.id}
+                >
+                  {skillDeletingId === skill.id ? (
+                    <span className="spinner" style={{ width: 9, height: 9, borderWidth: 1, borderColor: '#94A3B8', borderTopColor: '#2563EB' }}></span>
+                  ) : (
+                    <i className="ph ph-x"></i>
+                  )}
+                </button>
               </span>
             ))}
           </div>
@@ -905,6 +1557,156 @@ export default function StudentResume() {
           </div>
         )}
       </section>
+
+      {/* Confirmation Modal: Delete Resume */}
+      {confirmDeleteResume && (
+        <div className="modal-backdrop" onClick={() => !actionLoading && setConfirmDeleteResume(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon danger">
+              <i className="ph-fill ph-trash"></i>
+            </div>
+            <h3>Remove Resume</h3>
+            <p>
+              Are you sure you want to remove <strong>{confirmDeleteResume.file_name}</strong>?
+              This will permanently delete the file from your Supabase storage container and remove its analysis record.
+            </p>
+            <label className="modal-checkbox-row">
+              <input
+                type="checkbox"
+                checked={deleteResumeSkills}
+                onChange={e => setDeleteResumeSkills(e.target.checked)}
+              />
+              <span>Also remove unverified skills extracted from this resume from my profile</span>
+            </label>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="resume-button secondary"
+                onClick={() => setConfirmDeleteResume(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="resume-button danger-btn"
+                onClick={handleDeleteResume}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <><span className="spinner"></span> Removing...</> : <><i className="ph ph-trash"></i> Delete from Storage</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Delete Certificate */}
+      {confirmDeleteDoc && (
+        <div className="modal-backdrop" onClick={() => !actionLoading && setConfirmDeleteDoc(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon danger">
+              <i className="ph-fill ph-trash"></i>
+            </div>
+            <h3>Remove Certificate</h3>
+            <p>
+              Are you sure you want to remove <strong>{confirmDeleteDoc.title || confirmDeleteDoc.file_name}</strong>?
+              This will delete the document from your Supabase storage container.
+            </p>
+            <label className="modal-checkbox-row">
+              <input
+                type="checkbox"
+                checked={deleteDocSkills}
+                onChange={e => setDeleteDocSkills(e.target.checked)}
+              />
+              <span>Revert or remove corroborated skills verified by this certificate</span>
+            </label>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="resume-button secondary"
+                onClick={() => setConfirmDeleteDoc(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="resume-button danger-btn"
+                onClick={handleDeleteDocument}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <><span className="spinner"></span> Removing...</> : <><i className="ph ph-trash"></i> Delete from Storage</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Clear Skills */}
+      {showClearSkillsModal && (
+        <div className="modal-backdrop" onClick={() => !actionLoading && setShowClearSkillsModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon danger">
+              <i className="ph-fill ph-trash"></i>
+            </div>
+            <h3>Clear Extracted Skills</h3>
+            <p>
+              Choose which extracted skills to remove from your Supabase profile and database container:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '16px 0', textAlign: 'left' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, border: clearScope === 'unverified' ? '1.5px solid #2563EB' : '1px solid #E2E8F0', borderRadius: 10, background: clearScope === 'unverified' ? '#EFF6FF' : '#F8FAFC', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="clearScope"
+                  value="unverified"
+                  checked={clearScope === 'unverified'}
+                  onChange={() => setClearScope('unverified')}
+                  style={{ marginTop: 3 }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#0F172A' }}>Clear Resume Claims ({unverifiedSkills.length} unverified skills)</div>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>Removes all AI-extracted, self-reported skills from previous resumes. Preserves your verified credentials safe.</div>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, border: clearScope === 'all' ? '1.5px solid #EF4444' : '1px solid #E2E8F0', borderRadius: 10, background: clearScope === 'all' ? '#FEF2F2' : '#F8FAFC', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="clearScope"
+                  value="all"
+                  checked={clearScope === 'all'}
+                  onChange={() => setClearScope('all')}
+                  style={{ marginTop: 3 }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#991B1B' }}>Clear All Skills ({skills.length} total)</div>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>Permanently wipes all skills (verified & unverified) from your profile database container for a fresh start.</div>
+                </div>
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="resume-button secondary"
+                onClick={() => setShowClearSkillsModal(false)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="resume-button danger-btn"
+                onClick={handleClearSkills}
+                disabled={actionLoading || (clearScope === 'unverified' && unverifiedSkills.length === 0) || (clearScope === 'all' && skills.length === 0)}
+              >
+                {actionLoading ? <><span className="spinner"></span> Clearing...</> : <><i className="ph ph-trash"></i> Clear Selected Skills</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
+
+

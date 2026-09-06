@@ -46,9 +46,10 @@ def test_profile_analyze(api):
     body = res.json()
     assert body["profile_completeness"] > 0
     assert any(s["skill"] == "Python" for s in body["verified_skills"])
-    assert any(s["skill"] == "SQL" for s in body["unverified_skills"])
+    # unverified_skills is now merged into skills list with source field
+    assert any(s["skill_name"] == "SQL" for s in body["skills"])
     assert body["certifications_count"] == 1
-    assert body["academic_summary"]["cgpa"] == 8.2
+    assert body["academic_record"]["cgpa_till_date"] == 8.2
 
 
 def test_dashboard_reports_analysis_required_when_no_cache(api):
@@ -173,3 +174,198 @@ def test_verify_document_validation_errors(api):
     # Unsupported format
     res = api.post("/api/resume/verify-document", files={"file": ("test.exe", b"fake binary", "application/octet-stream")})
     assert res.status_code == 400
+
+
+def test_list_resumes(api):
+    res = api.get("/api/resume/list")
+    assert res.status_code == 200
+    resumes = res.json()
+    assert isinstance(resumes, list)
+    assert len(resumes) >= 1
+    first = resumes[0]
+    assert first["resume_id"] == "resume-1"
+    assert first["file_name"] == "Asha_Resume.pdf"
+    assert first["is_active"] is True
+    assert "resume_url" in first
+
+
+def test_select_active_resume(api, mock_client):
+    # Add a second resume
+    mock_client._db.tables["resume_processing_jobs"].append({
+        "id": "job-2",
+        "resume_id": "resume-2",
+        "student_id": "student-1",
+        "storage_path": "student-1/resumes/resume-2.pdf",
+        "file_name": "Asha_Resume_v2.pdf",
+        "file_type": "pdf",
+        "file_size": 120000,
+        "status": "completed",
+        "extracted_text": "React TypeScript",
+        "created_at": "2026-03-01T12:00:00Z",
+        "updated_at": "2026-03-01T12:00:00Z",
+    })
+
+    res = api.post("/api/resume/select-active/resume-2")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+
+    # Confirm students table resume_url is updated
+    student = mock_client._db.tables["students"][0]
+    assert student["resume_url"] == "student-1/resumes/resume-2.pdf"
+
+
+def test_delete_resume_and_skills(api, mock_client):
+    res = api.delete("/api/resume/resume-1?delete_skills=true")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    assert body["deleted_id"] == "resume-1"
+
+    remaining_jobs = [j for j in mock_client._db.tables.get("resume_processing_jobs", []) if j.get("resume_id") == "resume-1"]
+    assert len(remaining_jobs) == 0
+
+
+def test_delete_document_and_skills(api, mock_client):
+    assert any(c["id"] == "cert-1" for c in mock_client._db.tables["certifications"])
+
+    res = api.delete("/api/resume/documents/cert-1?delete_skills=true")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    assert body["deleted_id"] == "cert-1"
+
+    remaining_certs = [c for c in mock_client._db.tables["certifications"] if c["id"] == "cert-1"]
+    assert len(remaining_certs) == 0
+
+
+def test_clear_unverified_skills(api, mock_client):
+    # Student initially has verified python and unverified sql
+    skills = [s for s in mock_client._db.tables["student_skills"] if s["student_id"] == "student-1"]
+    assert len(skills) == 2
+
+    res = api.delete("/api/resume/skills?scope=unverified")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    assert body["skills_affected"] == 1
+
+    remaining = [s for s in mock_client._db.tables["student_skills"] if s["student_id"] == "student-1"]
+    assert len(remaining) == 1
+    assert remaining[0]["skill_id"] == "skill-python"
+    assert remaining[0]["is_verified"] is True
+
+
+def test_clear_all_skills(api, mock_client):
+    res = api.delete("/api/resume/skills?scope=all")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    assert body["skills_affected"] == 2
+
+    remaining = [s for s in mock_client._db.tables["student_skills"] if s["student_id"] == "student-1"]
+    assert len(remaining) == 0
+
+
+def test_delete_single_skill(api, mock_client):
+    res = api.delete("/api/resume/skills/skill-sql")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["success"] is True
+    assert body["skills_affected"] == 1
+    assert body["deleted_id"] == "skill-sql"
+
+    remaining = [s for s in mock_client._db.tables["student_skills"] if s["student_id"] == "student-1"]
+    assert len(remaining) == 1
+    assert remaining[0]["skill_id"] == "skill-python"
+
+
+def test_onboarding_config(api):
+    res = api.get("/api/onboarding/config")
+    assert res.status_code == 200
+    body = res.json()
+    assert "domains" in body
+    assert "skill_categories" in body
+    assert "skills" in body
+
+
+def test_onboarding_complete_authenticated_student(api, mock_client):
+    # Setup second student in mock db to verify isolation
+    mock_client._db.tables["students"].append({
+        "id": "student-2",
+        "bio": "Untouched student bio",
+        "domain_id": None,
+        "is_placed": False,
+        "onboarding_completed": False,
+    })
+
+    payload = {
+        "bio": "Passionate developer focusing on AI and distributed systems.",
+        "domain_id": "domain-cs",
+        "subdomain_id": None,
+        "interest_id": None,
+        "skills": [
+            {"skill_id": "skill-python", "proficiency": "advanced"},
+            {"skill_id": "skill-cloud", "proficiency": "intermediate"},
+        ]
+    }
+
+    res = api.post("/api/onboarding/complete", json=payload)
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+
+    # Verify student-1 was updated
+    student1 = next(s for s in mock_client._db.tables["students"] if s["id"] == "student-1")
+    assert student1["bio"] == payload["bio"]
+    assert student1["domain_id"] == "domain-cs"
+    assert student1["onboarding_completed"] is True
+
+    # Verify student-2 remains completely untouched
+    student2 = next(s for s in mock_client._db.tables["students"] if s["id"] == "student-2")
+    assert student2["bio"] == "Untouched student bio"
+    assert student2["onboarding_completed"] is False
+
+    # Verify student-1 skills were upserted with calculated self_report confidence
+    skills1 = [s for s in mock_client._db.tables["student_skills"] if s["student_id"] == "student-1"]
+    assert any(s["skill_id"] == "skill-cloud" and s["proficiency"] == "intermediate" for s in skills1)
+
+
+def test_onboarding_assessment(api):
+    q_res = api.get("/api/onboarding/assessment")
+    assert q_res.status_code == 200
+    questions = q_res.json()["questions"]
+    assert len(questions) > 0
+    assert "correct_index" not in questions[0]  # Answers should not leak to client
+
+    # Submit assessment
+    submit_res = api.post("/api/onboarding/assessment", json={
+        "interest_id": None,
+        "answers": [{"question_id": q["id"], "selected_index": 0} for q in questions]
+    })
+    assert submit_res.status_code == 200
+    assert "score" in submit_res.json()
+
+
+def test_onboarding_complete_handles_auth_metadata_sync_failure(api, mock_client):
+    # Make auth admin sync throw an exception
+    def failing_update_user_by_id(uid, **kwargs):
+        raise Exception("Supabase Auth Admin network error")
+
+    mock_client.auth.admin.update_user_by_id = failing_update_user_by_id
+
+    payload = {
+        "bio": "Developer with best effort auth sync.",
+        "domain_id": "domain-cs",
+        "skills": []
+    }
+
+    res = api.post("/api/onboarding/complete", json=payload)
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+
+    # Database state MUST still be saved successfully despite auth sync failure
+    student1 = next(s for s in mock_client._db.tables["students"] if s["id"] == "student-1")
+    assert student1["bio"] == "Developer with best effort auth sync."
+    assert student1["onboarding_completed"] is True
+
+

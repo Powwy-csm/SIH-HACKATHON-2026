@@ -34,8 +34,11 @@ app.add_middleware(
 app.include_router(student_ai_router)
 app.include_router(resume_router)
 app.include_router(ai_processing_router)
-
+from app.api.onboarding import router as onboarding_router
+app.include_router(onboarding_router)
+from app.api.student_profile import router as student_profile_router
+app.include_router(student_profile_router)
 
 @app.get("/health")
-async def health():
+def health():
     return {"status": "ok"}

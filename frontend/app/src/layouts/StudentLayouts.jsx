@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockData } from '../data/mockData';
 
 // src/layouts/StudentLayout.jsx
 import '../styles/student.css'; 
 
 export default function StudentLayout() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const student = mockData.students[0];
-    const studentName = student?.full_name || user?.full_name || 'Student';
-    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=E2E8F0&color=172033&bold=true`;
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+
+    const studentName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Student');
+    const studentSubtitle = user?.email || (user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : 'Student Portal');
+    
+    const getInitials = (name) => {
+        if (!name) return 'ST';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        return name.slice(0, 2).toUpperCase();
+    };
+    const userInitials = getInitials(studentName);
+
+    const avatarUrl = user?.avatar_url;
     const navClass = ({ isActive }) => isActive ? 'nav-item active' : 'nav-item';
     const closeSidebar = () => setSidebarOpen(false);
 
@@ -71,10 +81,18 @@ export default function StudentLayout() {
 
                 <div className="sidebar-footer">
                     <div className="student-profile-mini">
-                        <img src={avatarUrl} alt={studentName} className="avatar" />
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt={studentName} className="avatar" />
+                        ) : (
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#3B82F6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13, flexShrink: 0 }}>
+                                {userInitials}
+                            </div>
+                        )}
                         <div className="info">
                             <span className="name">{studentName}</span>
-                            <span className="degree">B.E. Computer Science</span>
+                            <span className="degree" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                                {studentSubtitle}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -100,8 +118,134 @@ export default function StudentLayout() {
                             <i className="ph ph-bell"></i>
                             <span className="indicator"></span>
                         </button>
-                        <div className="top-profile">
-                            <img src={avatarUrl} alt="Avatar" />
+
+                        {/* Interactive Profile Dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button"
+                                onClick={() => setDropdownOpen(prev => !prev)}
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    cursor: 'pointer',
+                                    padding: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    borderRadius: '50%',
+                                }}
+                                aria-label="User menu"
+                            >
+                                <div className="top-profile" style={{ cursor: 'pointer' }}>
+                                    {avatarUrl ? (
+                                        <img src={avatarUrl} alt={studentName} />
+                                    ) : (
+                                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#2563EB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13 }}>
+                                            {userInitials}
+                                        </div>
+                                    )}
+                                </div>
+                            </button>
+
+                            {dropdownOpen && (
+                                <>
+                                    <div
+                                        style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+                                        onClick={() => setDropdownOpen(false)}
+                                    />
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 8px)',
+                                        right: 0,
+                                        zIndex: 100,
+                                        width: 230,
+                                        backgroundColor: '#FFFFFF',
+                                        borderRadius: '12px',
+                                        border: '1px solid #E2E8F0',
+                                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                                        padding: '12px 0',
+                                        fontSize: 14,
+                                        color: '#0F172A',
+                                    }}>
+                                        <div style={{ padding: '0 16px 10px 16px', borderBottom: '1px solid #F1F5F9' }}>
+                                            <div style={{ fontWeight: 600, color: '#0F172A' }}>{studentName}</div>
+                                            <div style={{ fontSize: 12, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {user?.email}
+                                            </div>
+                                            <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 4, background: '#EFF6FF', color: '#2563EB', fontSize: 11, fontWeight: 600 }}>
+                                                {user?.role ? user.role.toUpperCase() : 'STUDENT'}
+                                            </span>
+                                        </div>
+
+                                        <div style={{ padding: '6px 0' }}>
+                                            <Link
+                                                to="/student/profile"
+                                                onClick={() => setDropdownOpen(false)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10,
+                                                    padding: '8px 16px',
+                                                    color: '#334155',
+                                                    textDecoration: 'none',
+                                                    transition: 'background 0.15s ease',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            >
+                                                <i className="ph ph-user" style={{ fontSize: 16 }}></i>
+                                                My Profile
+                                            </Link>
+                                            <Link
+                                                to="/student/settings"
+                                                onClick={() => setDropdownOpen(false)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10,
+                                                    padding: '8px 16px',
+                                                    color: '#334155',
+                                                    textDecoration: 'none',
+                                                    transition: 'background 0.15s ease',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            >
+                                                <i className="ph ph-gear" style={{ fontSize: 16 }}></i>
+                                                Settings
+                                            </Link>
+                                        </div>
+
+                                        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 6 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDropdownOpen(false);
+                                                    logout();
+                                                }}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10,
+                                                    width: '100%',
+                                                    padding: '8px 16px',
+                                                    border: 'none',
+                                                    background: 'transparent',
+                                                    color: '#DC2626',
+                                                    fontSize: 14,
+                                                    cursor: 'pointer',
+                                                    textAlign: 'left',
+                                                    transition: 'background 0.15s ease',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            >
+                                                <i className="ph ph-sign-out" style={{ fontSize: 16 }}></i>
+                                                Sign Out
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>

@@ -32,6 +32,7 @@ class ResumeStatusResponse(BaseModel):
 
 
 class ResumeSkillItem(BaseModel):
+    skill_id: str | None = None
     raw_skill_name: str
     normalized_skill_name: str | None = None
     matched_skill_name: str | None = None
@@ -100,6 +101,30 @@ class StudentDocumentItem(BaseModel):
     id: str
     title: str
     file_name: str
+    file_type: str | None = None
+    file_url: str | None = None
     storage_path: str | None = None
     created_at: str | None = None
     skills_verified: list[str] = []
+
+
+class ResumeListItem(BaseModel):
+    resume_id: str
+    file_name: str
+    file_type: str
+    file_size: int
+    storage_path: str
+    extraction_status: str | None = None
+    processing_status: str | None = None
+    resume_url: str | None = None
+    is_active: bool = False
+    uploaded_at: str | None = None
+    skills_count: int = 0
+
+
+class DeleteItemResponse(BaseModel):
+    success: bool
+    message: str
+    deleted_id: str | None = None
+    skills_affected: int = 0
+

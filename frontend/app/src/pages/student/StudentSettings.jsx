@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import { studentProfile } from './studentPortalData';
+import { useAuth } from '../../context/AuthContext';
+
+const labels = {
+  opportunityAlerts: 'Opportunity alerts',
+  profileVisible: 'Public profile visible to recruiters',
+  weeklyDigest: 'Weekly learning digest',
+  interviewReminders: 'Interview reminders',
+};
 
 export default function StudentSettings() {
+  const { user } = useAuth();
+  const studentName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Student');
+  const studentEmail = user?.email || '';
+
   const [settings, setSettings] = useState({
     opportunityAlerts: true,
     profileVisible: true,
@@ -27,15 +38,19 @@ export default function StudentSettings() {
         <section className="portal-card">
           <div className="section-heading">
             <h2>Account</h2>
-            <p className="section-sub">{studentProfile.name} - {studentProfile.college}</p>
+            <p className="section-sub">{studentName} · {studentEmail}</p>
           </div>
           <label className="form-row">
             <span>Display name</span>
-            <input type="text" defaultValue={studentProfile.name} />
+            <input type="text" defaultValue={studentName} key={`name-${studentName}`} />
+          </label>
+          <label className="form-row">
+            <span>Email address</span>
+            <input type="email" defaultValue={studentEmail} disabled style={{ opacity: 0.7 }} />
           </label>
           <label className="form-row">
             <span>Career headline</span>
-            <input type="text" defaultValue={studentProfile.headline} />
+            <input type="text" defaultValue={user?.user_metadata?.headline || 'Verified Student Candidate'} />
           </label>
         </section>
 
@@ -55,10 +70,3 @@ export default function StudentSettings() {
     </main>
   );
 }
-
-const labels = {
-  opportunityAlerts: 'Opportunity alerts',
-  profileVisible: 'Public profile visible to recruiters',
-  weeklyDigest: 'Weekly learning digest',
-  interviewReminders: 'Interview reminders',
-};

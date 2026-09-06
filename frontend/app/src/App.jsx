@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
 
 import StudentLayout from './layouts/StudentLayouts';
 import InstitutionLayout from './layouts/InstitutionLayout';
@@ -40,15 +41,67 @@ import IndustryAnalytics from './pages/industry/IndustryAnalytics';
 import IndustrySettings from './pages/industry/IndustrySettings';
 import IndustryHelp from './pages/industry/IndustryHelp';
 import CompanyProfileView from './pages/industry/CompanyProfileView';
+import RoleSelection from './pages/RoleSelection';
+import StudentOnboarding from './pages/student/StudentOnboarding';
+import { useAuth } from './context/AuthContext';
+
+function getDefaultPathForRole(role) {
+  if (role.includes('faculty') || role.includes('academic') || role.includes('institution')) {
+    return '/institution/dashboard';
+  }
+  if (role.includes('industry') || role.includes('company') || role.includes('employer')) {
+    return '/industry/dashboard';
+  }
+  return '/student/dashboard';
+}
+
+function ProtectedRoute({ children, role, allowIncompleteOnboarding = false }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+
+  const currentRole = String(user.role || 'student').toLowerCase();
+  if (role && !currentRole.includes(role)) {
+    return <Navigate to={getDefaultPathForRole(currentRole)} replace />;
+  }
+
+  // Student onboarding check
+  if (currentRole.includes('student')) {
+    const isOnboarded = !!user.onboarding_completed;
+    if (!isOnboarded && !allowIncompleteOnboarding) {
+      return <Navigate to="/student/onboarding" replace />;
+    }
+    if (isOnboarded && allowIncompleteOnboarding) {
+      return <Navigate to="/student/dashboard" replace />;
+    }
+  }
+
+  return children;
+}
 
 export default function App() {
   return (
     <Routes>
-      {/* Root points to Login */}
-      <Route path="/" element={<Login />} />
+      {/* Root points to Role Selection landing */}
+      <Route path="/" element={<RoleSelection />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/login/:portalRole" element={<Login />} />
+      <Route path="/login/:role" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+
+      {/* Student Onboarding Route (full-screen, rendered outside sidebar) */}
+      <Route
+        path="/student/onboarding"
+        element={
+          <ProtectedRoute role="student" allowIncompleteOnboarding={true}>
+            <StudentOnboarding />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Student Portal Routes */}
-      <Route path="/student" element={<StudentLayout />}>
+      <Route path="/student" element={<ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="profile" element={<StudentProfile />} />
@@ -64,7 +117,7 @@ export default function App() {
       </Route>
 
       {/* Institution Portal Routes */}
-      <Route path="/institution" element={<InstitutionLayout />}>
+      <Route path="/institution" element={<ProtectedRoute role="institution"><InstitutionLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<InstitutionDashboard />} />
         <Route path="students" element={<StudentReadiness />} />
@@ -77,7 +130,7 @@ export default function App() {
       </Route>
 
       {/* Industry Portal Routes */}
-      <Route path="/industry" element={<IndustryLayout />}>
+      <Route path="/industry" element={<ProtectedRoute role="industry"><IndustryLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<IndustryDashboard />} />
         <Route path="profile" element={<CompanyProfileView />} />

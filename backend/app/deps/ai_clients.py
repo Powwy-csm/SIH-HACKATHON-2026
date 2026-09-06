@@ -114,8 +114,23 @@ class GeminiProvider(AIProvider):
             },
         }
 
-        models_to_try = [self._skill_model]
-        for fallback in ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3-flash-preview"]:
+        retired_models = {
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash-8b",
+        }
+        fallbacks = [
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-lite-latest",
+        ]
+        models_to_try = []
+        if self._skill_model and self._skill_model not in retired_models:
+            models_to_try.append(self._skill_model)
+        for fallback in fallbacks:
             if fallback not in models_to_try:
                 models_to_try.append(fallback)
 
@@ -130,21 +145,57 @@ class GeminiProvider(AIProvider):
             except AIProviderError as exc:
                 last_exc = exc
                 logger.warning("Skill extraction on model %s failed: %s. Attempting fallback model...", model, exc)
+                time.sleep(0.5)
                 continue
 
         if raw_text is None:
             raise last_exc or AIProviderError("All AI models failed during skill extraction.")
 
+        parsed = None
+        raw_clean = raw_text.strip()
+
+        # 1. Direct JSON parse
         try:
-            parsed = json.loads(raw_text)
-        except json.JSONDecodeError as exc:
-            raise AIProviderError(
-                "The AI provider returned a response that was not valid JSON."
-            ) from exc
+            parsed = json.loads(raw_clean)
+        except Exception:
+            pass
+
+        # 2. Markdown fence extraction
+        if parsed is None and "```" in raw_clean:
+            for part in raw_clean.split("```"):
+                part = part.strip()
+                if part.startswith("json"):
+                    part = part[4:].strip()
+                if part.startswith("[") and part.endswith("]"):
+                    try:
+                        parsed = json.loads(part)
+                        break
+                    except Exception:
+                        pass
+
+        # 3. Outer array slice [ ... ]
+        if parsed is None:
+            start_b = raw_clean.find("[")
+            end_b = raw_clean.rfind("]")
+            if start_b != -1 and end_b != -1 and end_b > start_b:
+                try:
+                    parsed = json.loads(raw_clean[start_b : end_b + 1])
+                except Exception:
+                    pass
+
+        # 4. JSONDecoder raw_decode to ignore trailing commentary / extra data
+        if parsed is None:
+            start_b = raw_clean.find("[")
+            if start_b != -1:
+                try:
+                    decoder = json.JSONDecoder()
+                    parsed, _ = decoder.raw_decode(raw_clean[start_b:])
+                except Exception:
+                    pass
 
         if not isinstance(parsed, list):
             raise AIProviderError(
-                "The AI provider's skill extraction response was not a JSON array."
+                "The AI provider returned a response that could not be parsed as a JSON array of skills."
             )
 
         skills = []

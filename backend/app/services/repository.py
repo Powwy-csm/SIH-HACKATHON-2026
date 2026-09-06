@@ -8,8 +8,7 @@ rows, or public reference data like open postings). Writes to
 explicitly by the caller (never constructed inside this module from
 untrusted input).
 """
-from __future__ import annotations
-
+import logging
 import time
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -18,7 +17,33 @@ from supabase import Client
 
 from app.services.matching_engine import MatchResult, RequiredSkill, gap_priority
 
+logger = logging.getLogger(__name__)
 
+
+def fetch_comprehensive_student_data(client, student_id: str) -> dict:
+    """
+    Fetches the student, their projects, skills, academic records, 
+    and domain hierarchy names in exactly ONE network request.
+    """
+    try:
+        # The magic is inside the .select() string.
+        # It tells Supabase to join all these foreign-key-linked tables automatically.
+        response = client.table("students").select("""
+            *,
+            student_projects(*),
+            student_skills(*),
+            domains(name),
+            subdomains(name),
+            fields_of_interest(name)
+        """).eq("id", student_id).maybe_single().execute()
+        
+        return response.data or {}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed comprehensive fetch for {student_id}: {e}")
+        return {}
+
+    
 def _execute_with_retry(query, max_retries: int = 3):
     """Executes a Supabase query builder with retries on transient connection drops."""
     last_exc = None
@@ -37,7 +62,7 @@ def _execute_with_retry(query, max_retries: int = 3):
 def fetch_student_row(client: Client, student_id: str) -> dict | None:
     res = _execute_with_retry(
         client.table("students")
-        .select("id, resume_url, linkedin_url, github_url, portfolio_url, bio, domain_id, is_placed")
+        .select("id, resume_url, linkedin_url, github_url, portfolio_url, bio, domain_id, subdomain_id, interest_id, is_placed, onboarding_completed")
         .eq("id", student_id)
         .single()
     )
@@ -289,6 +314,33 @@ def fetch_latest_resume(client: Client, student_id: str) -> dict | None:
     return row
 
 
+def fetch_all_resumes_for_student(client: Client, student_id: str) -> list[dict]:
+    res = (
+        client.table("resume_processing_jobs")
+        .select(
+            "resume_id, student_id, storage_path, file_name, file_type, file_size, "
+            "status, error_message, extracted_text, created_at, updated_at"
+        )
+        .eq("student_id", student_id)
+        .not_.is_("storage_path", "null")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    rows = res.data or []
+    out = []
+    for row in rows:
+        r = dict(row)
+        r["id"] = r.get("resume_id")
+        r["extraction_status"] = (
+            "extracted" if r.get("extracted_text") else
+            "failed" if r.get("status") == "failed" else
+            "uploaded"
+        )
+        r["extraction_error"] = r.get("error_message")
+        out.append(r)
+    return out
+
+
 def fetch_resume_for_student(client: Client, student_id: str, resume_id: str) -> dict | None:
     res = (
         client.table("resume_processing_jobs")
@@ -323,6 +375,7 @@ def insert_resume_record(
     file_size: int,
 ) -> dict:
     resume_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
     res = _execute_with_retry(
         service_client.table("resume_processing_jobs")
         .insert(
@@ -334,11 +387,146 @@ def insert_resume_record(
                 "file_name": file_name,
                 "file_type": file_type,
                 "file_size": file_size,
+                "created_at": now,
+                "updated_at": now,
             }
         )
     )
     rows = res.data or []
-    return rows[0] if rows else {"resume_id": resume_id, "id": resume_id}
+    return rows[0] if rows else {"resume_id": resume_id, "id": resume_id, "created_at": now}
+
+
+def delete_resume_record(service_client: Client, student_id: str, resume_id: str) -> dict | None:
+    row = fetch_resume_for_student(service_client, student_id, resume_id)
+    if not row:
+        return None
+
+    try:
+        service_client.table("resume_processing_jobs").delete().eq(
+            "student_id", student_id
+        ).eq("resume_id", resume_id).execute()
+    except Exception as exc:
+        logger.warning("Error deleting from resume_processing_jobs: %s", exc)
+
+    try:
+        service_client.table("resumes").delete().eq(
+            "student_id", student_id
+        ).eq("id", resume_id).execute()
+    except Exception:
+        pass
+
+    try:
+        service_client.table("extracted_skill_candidates").delete().eq(
+            "student_id", student_id
+        ).eq("resume_id", resume_id).execute()
+    except Exception:
+        pass
+
+    return row
+
+
+def delete_unverified_student_skills(
+    service_client: Client,
+    student_id: str,
+    skill_ids: list[str] | None = None,
+) -> int:
+    """Deletes unverified AI-estimated skills for a student. If skill_ids is provided,
+    only deletes those specific skills; otherwise deletes all unverified ai_estimated skills.
+    Never alters verified (is_verified=True) credentials."""
+    try:
+        q = (
+            service_client.table("student_skills")
+            .delete()
+            .eq("student_id", student_id)
+            .eq("is_verified", False)
+        )
+        if skill_ids:
+            q = q.in_("skill_id", skill_ids)
+        res = q.execute()
+        deleted_rows = res.data or []
+        return len(deleted_rows)
+    except Exception as exc:
+        logger.warning("Error deleting unverified skills: %s", exc)
+def delete_all_student_skills(
+    service_client: Client,
+    student_id: str,
+) -> int:
+    """Deletes all skills (verified and unverified) for a student from student_skills."""
+    try:
+        res = (
+            service_client.table("student_skills")
+            .delete()
+            .eq("student_id", student_id)
+            .execute()
+        )
+        deleted_rows = res.data or []
+        try:
+            service_client.table("extracted_skill_candidates").delete().eq("student_id", student_id).execute()
+        except Exception:
+            pass
+        return len(deleted_rows)
+    except Exception as exc:
+        logger.warning("Error deleting all skills for student %s: %s", student_id, exc)
+        return 0
+
+
+def delete_single_student_skill(
+    service_client: Client,
+    student_id: str,
+    skill_identifier: str,
+) -> int:
+    """Deletes a single skill from student_skills by skill_id UUID or skill name."""
+    try:
+        res = (
+            service_client.table("student_skills")
+            .delete()
+            .eq("student_id", student_id)
+            .eq("skill_id", skill_identifier)
+            .execute()
+        )
+        deleted = len(res.data or [])
+        if deleted > 0:
+            try:
+                service_client.table("extracted_skill_candidates").delete().eq("student_id", student_id).eq("skill_id", skill_identifier).execute()
+            except Exception:
+                pass
+            return deleted
+
+        import re
+        candidate_names = [skill_identifier]
+        clean_name = re.sub(r"-\d+$", "", skill_identifier).strip()
+        if clean_name and clean_name not in candidate_names:
+            candidate_names.append(clean_name)
+
+        for name in candidate_names:
+            skill_res = (
+                service_client.table("skills")
+                .select("id")
+                .ilike("name", name)
+                .limit(1)
+                .execute()
+            )
+            if skill_res.data:
+                matched_skill_id = skill_res.data[0]["id"]
+                res2 = (
+                    service_client.table("student_skills")
+                    .delete()
+                    .eq("student_id", student_id)
+                    .eq("skill_id", matched_skill_id)
+                    .execute()
+                )
+                deleted2 = len(res2.data or [])
+                if deleted2 > 0:
+                    try:
+                        service_client.table("extracted_skill_candidates").delete().eq("student_id", student_id).eq("skill_id", matched_skill_id).execute()
+                    except Exception:
+                        pass
+                    return deleted2
+
+        return 0
+    except Exception as exc:
+        logger.warning("Error deleting single skill %s for student %s: %s", skill_identifier, student_id, exc)
+        return 0
 
 
 def update_resume_extraction(
@@ -400,6 +588,22 @@ def create_resume_signed_url(
     if isinstance(res, dict):
         return res.get("signedURL") or res.get("signedUrl") or res.get("signed_url")
     return None
+
+
+def delete_storage_file(
+    service_client: Client,
+    bucket: str,
+    storage_path: str,
+) -> bool:
+    """Removes a file from the specified Supabase Storage bucket."""
+    if not storage_path:
+        return False
+    try:
+        service_client.storage.from_(bucket).remove([storage_path])
+        return True
+    except Exception as exc:
+        logger.warning("Failed to remove storage file %s from %s: %s", storage_path, bucket, exc)
+        return False
 
 
 # ---------- AI skill extraction / normalization (Phase 2) ----------
@@ -535,6 +739,88 @@ def fetch_student_certifications(client: Client, student_id: str) -> list[dict]:
     return res.data or []
 
 
+def fetch_certification(client: Client, student_id: str, cert_id: str) -> dict | None:
+    res = (
+        client.table("certifications")
+        .select("id, student_id, title, issuing_organization, credential_url, is_verified, created_at")
+        .eq("student_id", student_id)
+        .eq("id", cert_id)
+        .maybe_single()
+        .execute()
+    )
+    return res.data if res else None
+
+
+def delete_certification_record(service_client: Client, student_id: str, cert_id: str) -> dict | None:
+    row = fetch_certification(service_client, student_id, cert_id)
+    if not row:
+        return None
+    service_client.table("certifications").delete().eq(
+        "student_id", student_id
+    ).eq("id", cert_id).execute()
+    return row
+
+
+def revert_or_delete_certificate_skills(
+    service_client: Client,
+    student_id: str,
+    evidence_path: str,
+    delete_pure_doc_skills: bool = True,
+) -> int:
+    """Reverts or deletes skills corroborated by a certificate that is being removed."""
+    skills = fetch_student_skills(service_client, student_id)
+    affected_count = 0
+
+    latest_resume = fetch_latest_resume(service_client, student_id)
+    resume_text = (latest_resume.get("extracted_text") or "").lower() if latest_resume else ""
+
+    for s in skills:
+        ev = s.get("evidence_url") or ""
+        matches_evidence = bool(
+            evidence_path and (ev == evidence_path or evidence_path in ev or (ev and ev in evidence_path))
+        )
+        if not matches_evidence:
+            continue
+
+        skill_id = s["skill_id"]
+        skill_name = (s.get("skill_name") or "").lower()
+        also_on_resume = bool(skill_name and skill_name in resume_text)
+
+        if also_on_resume:
+            # Revert to unverified resume claim
+            service_client.table("student_skills").update({
+                "is_verified": False,
+                "proficiency": "intermediate",
+                "proficiency_score": 60.0,
+                "source": "ai_estimated",
+                "evidence_url": None,
+                "source_confidence": 0.60,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("student_id", student_id).eq("skill_id", skill_id).execute()
+            affected_count += 1
+        elif delete_pure_doc_skills:
+            # Skill only existed because of this certificate: delete it
+            service_client.table("student_skills").delete().eq(
+                "student_id", student_id
+            ).eq("skill_id", skill_id).execute()
+            affected_count += 1
+        else:
+            # Fallback revert
+            service_client.table("student_skills").update({
+                "is_verified": False,
+                "proficiency": "intermediate",
+                "proficiency_score": 60.0,
+                "source": "student_added",
+                "evidence_url": None,
+                "source_confidence": 0.60,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("student_id", student_id).eq("skill_id", skill_id).execute()
+            affected_count += 1
+
+    return affected_count
+
+
+
 def insert_skill_candidate(service_client: Client, row: dict) -> None:
     # The production schema does not contain an extracted_skill_candidates
     # table. Matched skills are persisted in student_skills; unmatched skills
@@ -640,3 +926,47 @@ def upsert_student_embedding(
         },
         on_conflict="student_id",
     ).execute()
+
+
+def fetch_student_projects(client: Client, student_id: str) -> list[dict]:
+    res = _execute_with_retry(
+        client.table("student_projects")
+        .select("*")
+        .eq("student_id", student_id)
+        .order("created_at", desc=True)
+    )
+    return res.data or []
+
+
+def upsert_student_project(service_client: Client, student_id: str, project_id: str | None, data: dict) -> dict:
+    payload = {
+        "student_id": student_id,
+        "title": data.get("title"),
+        "description": data.get("description"),
+        "start_date": data.get("start_date"),
+        "end_date": data.get("end_date"),
+        "tags": data.get("tags", []),
+        "project_url": data.get("project_url"),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    if project_id:
+        payload["id"] = project_id
+    else:
+        payload["id"] = str(uuid4())
+
+    res = _execute_with_retry(
+        service_client.table("student_projects").upsert(payload).select("*")
+    )
+    rows = res.data or []
+    if not rows:
+        raise ValueError("Failed to upsert project.")
+    return rows[0]
+
+
+def delete_student_project(service_client: Client, student_id: str, project_id: str):
+    _execute_with_retry(
+        service_client.table("student_projects")
+        .delete()
+        .eq("id", project_id)
+        .eq("student_id", student_id)
+    )

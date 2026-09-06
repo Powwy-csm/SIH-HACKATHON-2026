@@ -146,6 +146,10 @@ def normalize_and_store(
     summaries: list[SkillCandidateSummary] = []
     matched_skill_names: list[str] = []
 
+    # Clean up stale unverified AI-estimated claims so previous resume skills
+    # do not linger when a new resume is analyzed. Verified skills are preserved.
+    repo.delete_unverified_student_skills(service_client, student_id)
+
     for item in extracted_items:
         result = _normalize_one(item.skill_name, canonical_skills, by_normalized_name, alias_map, fuzzy_threshold)
 
