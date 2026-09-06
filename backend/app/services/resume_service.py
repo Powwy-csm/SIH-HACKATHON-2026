@@ -171,28 +171,38 @@ def get_latest_resume_status(client, service_client, student_id: str) -> dict:
 
 
 def list_student_resumes(client, service_client, student_id: str) -> list[dict]:
+    import concurrent.futures
     settings = get_settings()
-    rows = repo.fetch_all_resumes_for_student(client, student_id)
+
+    # Parallelize the two initial DB queries
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f_rows = executor.submit(repo.fetch_all_resumes_for_student, client, student_id)
+        f_student = executor.submit(repo.fetch_student_row, client, student_id)
+        rows = f_rows.result()
+        student_row = f_student.result()
+
     if not rows:
         return []
 
-    # Get currently active resume path from students.resume_url
-    student_row = repo.fetch_student_row(client, student_id)
     active_path = (student_row or {}).get("resume_url")
-
-    # If no resume_url in student_row, first row is active
     if not active_path and rows:
         active_path = rows[0]["storage_path"]
 
-    out = []
-    for r in rows:
-        is_active = (r["storage_path"] == active_path) if active_path else (len(out) == 0)
-        signed_url = repo.create_resume_signed_url(
+    # Parallelize signed URL generation for ALL resumes at once (eliminates N+1)
+    def _sign(storage_path):
+        return repo.create_resume_signed_url(
             service_client,
             settings.SUPABASE_STORAGE_BUCKET,
-            r["storage_path"],
+            storage_path,
             settings.RESUME_SIGNED_URL_EXPIRY_SECONDS,
         )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(rows), 5)) as executor:
+        signed_urls = list(executor.map(_sign, [r["storage_path"] for r in rows]))
+
+    out = []
+    for r, signed_url in zip(rows, signed_urls):
+        is_active = (r["storage_path"] == active_path) if active_path else (len(out) == 0)
         out.append({
             "resume_id": r["id"],
             "file_name": r["file_name"],

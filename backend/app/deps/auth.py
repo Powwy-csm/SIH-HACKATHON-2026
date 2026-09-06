@@ -18,7 +18,7 @@ class CurrentStudent:
 _auth_http_client = httpx.Client(transport=httpx.HTTPTransport(retries=5), timeout=15.0)
 
 
-async def get_current_student(
+def get_current_student(
     authorization: str | None = Header(default=None),
 ) -> CurrentStudent:
     # ---------------------------------------------------------

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import concurrent.futures
+import time
 from collections import defaultdict
 from supabase import Client
 
@@ -27,11 +29,34 @@ _SOURCE_TRUST_WEIGHTS = {
 
 
 def analyze_profile(client: Client, student_id: str) -> dict:
-    # 1. ONE network call to rule them all (Zero latency bottleneck)
-    data = repo.fetch_comprehensive_student_data(client, student_id)
-    
-    # Fallback for certifications count (keeping this separate as counting inside a join is tricky)
-    cert_count = repo.fetch_certifications_count(client, student_id) or 0
+    t_total = time.time()
+
+    # Parallelize student data fetch and certifications count
+    def _fetch_student_data():
+        t0 = time.time()
+        try:
+            res = repo.fetch_comprehensive_student_data(client, student_id)
+            print(f"[PERF] fetch_comprehensive_student_data: {time.time() - t0:.3f}s")
+            return res
+        except Exception as exc:
+            print(f"[ERROR] fetch_comprehensive_student_data failed: {exc}")
+            return {}
+
+    def _fetch_certs():
+        t1 = time.time()
+        try:
+            res = repo.fetch_certifications_count(client, student_id) or 0
+            print(f"[PERF] fetch_certifications_count: {time.time() - t1:.3f}s")
+            return res
+        except Exception as exc:
+            print(f"[ERROR] fetch_certifications_count failed: {exc}")
+            return 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f_data = executor.submit(_fetch_student_data)
+        f_certs = executor.submit(_fetch_certs)
+        data = f_data.result()
+        cert_count = f_certs.result()
 
     if not data:
         # Return empty state if student isn't found
@@ -74,12 +99,18 @@ def analyze_profile(client: Client, student_id: str) -> dict:
     else:
         trust_score = 0.0
 
+    def _get_skill_name(r):
+        return r.get("skill_name") or (r.get("skills") or {}).get("name") or r.get("raw_skill_name") or r.get("skill") or r.get("name") or "Skill"
+
+    def _get_category_name(r):
+        return r.get("category_name") or ((r.get("skills") or {}).get("skill_categories") or {}).get("name") or "General"
+
     by_category: dict[str, list[str]] = defaultdict(list)
     for r in skill_rows:
-        by_category[r.get("category_name", "Unknown")].append(r.get("skill_name", "Unknown"))
+        by_category[_get_category_name(r)].append(_get_skill_name(r))
 
     # 5. Return Formatted Dictionary
-    return {
+    result = {
         "profile_completeness": completeness,
         "trust_score": trust_score,
         "bio": data.get("bio"),
@@ -92,8 +123,8 @@ def analyze_profile(client: Client, student_id: str) -> dict:
         "skills": [
             {
                 "skill_id": r.get("skill_id"),
-                "skill_name": r.get("skill_name"),
-                "category_name": r.get("category_name"),
+                "skill_name": _get_skill_name(r),
+                "category_name": _get_category_name(r),
                 "proficiency": r.get("proficiency"),
                 "proficiency_score": r.get("proficiency_score"),
                 "is_verified": r.get("is_verified"),
@@ -103,7 +134,7 @@ def analyze_profile(client: Client, student_id: str) -> dict:
             for r in skill_rows
         ],
         "verified_skills": [
-            {"skill_id": r.get("skill_id"), "skill": r.get("skill_name"), "proficiency": r.get("proficiency")}
+            {"skill_id": r.get("skill_id"), "skill": _get_skill_name(r), "proficiency": r.get("proficiency")}
             for r in verified
         ],
         "skills_by_category": dict(by_category),
@@ -116,3 +147,5 @@ def analyze_profile(client: Client, student_id: str) -> dict:
         } if academic else None,
         "certifications_count": cert_count,
     }
+    print(f"[PERF] analyze_profile TOTAL: {time.time() - t_total:.3f}s")
+    return result

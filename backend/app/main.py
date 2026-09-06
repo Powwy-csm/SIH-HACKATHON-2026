@@ -1,3 +1,4 @@
+import socket
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,6 +6,17 @@ from app.api.ai_processing import router as ai_processing_router
 from app.api.resume import router as resume_router
 from app.api.student_ai import router as student_ai_router
 from app.config import get_settings
+
+# Prioritize the responsive Cloudflare Anycast IP to eliminate TCP connection resets
+_orig_getaddrinfo = socket.getaddrinfo
+def _resilient_getaddrinfo(host, port, *args, **kwargs):
+    if host and "tqlvqqevngcejshptjff.supabase.co" in host:
+        try:
+            return _orig_getaddrinfo("172.64.149.246", port, *args, **kwargs)
+        except Exception:
+            pass
+    return _orig_getaddrinfo(host, port, *args, **kwargs)
+socket.getaddrinfo = _resilient_getaddrinfo
 
 app = FastAPI(
     title="SIH26044 Student AI Service",

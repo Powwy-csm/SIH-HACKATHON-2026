@@ -31,7 +31,7 @@ def fetch_comprehensive_student_data(client, student_id: str) -> dict:
         response = client.table("students").select("""
             *,
             student_projects(*),
-            student_skills(*),
+            student_skills(*, skills(name, skill_categories(name))),
             domains(name),
             subdomains(name),
             fields_of_interest(name)

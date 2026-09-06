@@ -339,7 +339,11 @@ export default function StudentDashboard() {
             <div className="clean-skill-list">
               {skills.slice(0, 8).map(skill => {
                 const isVerified = skill.is_verified || skill.isVerified || skill.status === 'verified';
-                const score = Math.round((skill.confidence || skill.extraction_confidence || 0.7) * 100);
+                const rawScore = skill.proficiency_score ?? skill.confidence ?? skill.confidence_score ?? skill.extraction_confidence ?? skill.score;
+                const num = Number(rawScore);
+                const score = Number.isFinite(num) && num > 0
+                  ? (num <= 1.0 ? Math.round(num * 100) : Math.min(100, Math.round(num)))
+                  : 70;
                 return (
                   <div className="skill-row" key={skill.skill_id || skill.skill_name || skill.name}>
                     <div className="skill-info">

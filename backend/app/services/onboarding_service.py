@@ -1,4 +1,6 @@
+import concurrent.futures
 import logging
+import time
 from datetime import datetime, timezone
 from supabase import Client
 from app.schemas.onboarding_data import get_self_report_score, calculate_confidence, get_questions_for_interest
@@ -6,33 +8,77 @@ from app.schemas.onboarding_data import get_self_report_score, calculate_confide
 logger = logging.getLogger(__name__)
 
 def get_config(client: Client):
-    # Fetch domains
-    res_domains = client.table("domains").select("id, name").execute()
-    domains = res_domains.data or []
+    t_total = time.time()
 
-    # Fetch subdomains
-    # Using maybe_single or checking if the table exists could be tricky if we don't have it, but we assume the SQL is run.
-    try:
-        res_subdomains = client.table("subdomains").select("id, domain_id, name").execute()
-        subdomains = res_subdomains.data or []
-    except Exception as e:
-        logger.warning(f"Could not fetch subdomains (maybe table missing): {e}")
-        subdomains = []
+    def _fetch_domains():
+        t0 = time.time()
+        try:
+            res = client.table("domains").select("id, name").execute()
+            data = res.data or []
+            print(f"[PERF]   get_config (parallel) > domains: {time.time() - t0:.3f}s")
+            return data
+        except Exception as exc:
+            logger.warning(f"Could not fetch domains: {exc}")
+            return []
 
-    # Fetch fields_of_interest
-    try:
-        res_fields = client.table("fields_of_interest").select("id, subdomain_id, name").execute()
-        fields = res_fields.data or []
-    except Exception as e:
-        logger.warning(f"Could not fetch fields of interest: {e}")
-        fields = []
+    def _fetch_subdomains():
+        t1 = time.time()
+        try:
+            res = client.table("subdomains").select("id, domain_id, name").execute()
+            data = res.data or []
+            print(f"[PERF]   get_config (parallel) > subdomains: {time.time() - t1:.3f}s")
+            return data
+        except Exception as exc:
+            logger.warning(f"Could not fetch subdomains (maybe table missing): {exc}")
+            return []
 
-    # Fetch skill categories and skills
-    res_cats = client.table("skill_categories").select("id, name").execute()
-    cats = res_cats.data or []
-    
-    res_skills = client.table("skills").select("id, name, category_id").execute()
-    skills = res_skills.data or []
+    def _fetch_fields():
+        t2 = time.time()
+        try:
+            res = client.table("fields_of_interest").select("id, subdomain_id, name").execute()
+            data = res.data or []
+            print(f"[PERF]   get_config (parallel) > fields_of_interest: {time.time() - t2:.3f}s")
+            return data
+        except Exception as exc:
+            logger.warning(f"Could not fetch fields of interest: {exc}")
+            return []
+
+    def _fetch_cats():
+        t3 = time.time()
+        try:
+            res = client.table("skill_categories").select("id, name").execute()
+            data = res.data or []
+            print(f"[PERF]   get_config (parallel) > skill_categories: {time.time() - t3:.3f}s")
+            return data
+        except Exception as exc:
+            logger.warning(f"Could not fetch skill categories: {exc}")
+            return []
+
+    def _fetch_skills():
+        t4 = time.time()
+        try:
+            res = client.table("skills").select("id, name, category_id").execute()
+            data = res.data or []
+            print(f"[PERF]   get_config (parallel) > skills: {time.time() - t4:.3f}s")
+            return data
+        except Exception as exc:
+            logger.warning(f"Could not fetch skills: {exc}")
+            return []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        f_domains = executor.submit(_fetch_domains)
+        f_subdomains = executor.submit(_fetch_subdomains)
+        f_fields = executor.submit(_fetch_fields)
+        f_cats = executor.submit(_fetch_cats)
+        f_skills = executor.submit(_fetch_skills)
+
+        domains = f_domains.result()
+        subdomains = f_subdomains.result()
+        fields = f_fields.result()
+        cats = f_cats.result()
+        skills = f_skills.result()
+
+    print(f"[PERF]   get_config (parallel) TOTAL: {time.time() - t_total:.3f}s")
 
     return {
         "domains": domains,

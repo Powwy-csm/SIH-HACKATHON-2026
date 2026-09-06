@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional
@@ -21,7 +23,10 @@ def get_student_profile(
     current: CurrentStudent = Depends(get_current_student)
 ):
     """Fetch aggregated student profile including domain hierarchy, skills, academic record, and projects."""
-    return profile_service.analyze_profile(current.client, current.student_id)
+    t0 = time.time()
+    result = profile_service.analyze_profile(current.client, current.student_id)
+    print(f"[PERF] GET /api/student/profile handler: {time.time() - t0:.3f}s")
+    return result
 
 @router.put("/profile")
 def update_student_profile(
@@ -55,7 +60,10 @@ class ProjectCreateUpdateRequest(BaseModel):
 
 @router.get("/projects")
 def list_student_projects(current: CurrentStudent = Depends(get_current_student)):
-    return repo.fetch_student_projects(current.client, current.student_id)
+    t0 = time.time()
+    result = repo.fetch_student_projects(current.client, current.student_id)
+    print(f"[PERF] GET /api/student/projects handler: {time.time() - t0:.3f}s")
+    return result
 
 @router.post("/projects")
 def add_student_project(

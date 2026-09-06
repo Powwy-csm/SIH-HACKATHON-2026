@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
 
 from app.deps.auth import CurrentStudent, get_current_student
@@ -64,11 +66,14 @@ def list_resumes(
     service_client=Depends(get_service_client),
 ):
     """List all uploaded resumes for the current student."""
-    return resume_service.list_student_resumes(
+    t0 = time.time()
+    result = resume_service.list_student_resumes(
         client=current.client,
         service_client=service_client,
         student_id=current.student_id,
     )
+    print(f"[PERF] GET /api/resume/list handler: {time.time() - t0:.3f}s")
+    return result
 
 
 
@@ -183,6 +188,7 @@ def get_student_documents(
     service_client=Depends(get_service_client),
 ):
     """List uploaded supporting proof documents and the skills they verify with preview URLs."""
+    t0 = time.time()
     from app.config import get_settings
     cfg = get_settings()
 
@@ -228,6 +234,7 @@ def get_student_documents(
                 skills_verified=doc_skills,
             )
         )
+    print(f"[PERF] GET /api/resume/documents handler: {time.time() - t0:.3f}s")
     return out
 
 

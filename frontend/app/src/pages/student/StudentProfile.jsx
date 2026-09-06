@@ -39,13 +39,19 @@ function getSourceBadge(source, isVerified) {
 
 export default function StudentProfile() {
   const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [skills, setSkills] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [projects, setProjects] = useState([]);
   const [onboardingConfig, setOnboardingConfig] = useState(null);
+
+  // Per-section loading states for progressive rendering
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [resumesLoading, setResumesLoading] = useState(true);
+  const [configLoading, setConfigLoading] = useState(true);
 
   const apiFetch = useCallback(async (path, timeoutMs = 15000, options = {}) => {
     const accessToken = authContextToken || getAccessToken();
@@ -74,20 +80,25 @@ export default function StudentProfile() {
   }, [authContextToken]);
 
   const loadData = useCallback(async () => {
+    // Check sessionStorage for cached onboarding config first
+    let cachedConfig = null;
     try {
-      // Fire all endpoints concurrently in parallel
-      const [profileRes, projectsRes, docsRes, listRes, configRes] = await Promise.all([
-        apiFetch('/api/student/profile', 15000).then(async res => {
-          if (res) return res;
-          // Fallback to student-ai profile analyze if GET profile is unavailable
-          return await apiFetch('/api/student-ai/profile/analyze', 15000, { method: 'POST' });
-        }),
-        apiFetch('/api/student/projects', 15000),
-        apiFetch('/api/resume/documents', 15000),
-        apiFetch('/api/resume/list', 15000),
-        apiFetch('/api/onboarding/config', 15000),
-      ]);
+      const stored = sessionStorage.getItem('onboarding_config');
+      if (stored) {
+        cachedConfig = JSON.parse(stored);
+      }
+    } catch (e) {
+      // ignore parse error
+    }
 
+    // Fire all endpoints independently — each updates its own section as it resolves.
+    // This enables progressive rendering instead of waiting for the slowest endpoint.
+
+    apiFetch('/api/student/profile', 15000).then(async res => {
+      let profileRes = res;
+      if (!profileRes) {
+        profileRes = await apiFetch('/api/student-ai/profile/analyze', 15000, { method: 'POST' });
+      }
       const resolvedProfile = profileRes?.data || profileRes;
       if (resolvedProfile) {
         setProfileData(resolvedProfile);
@@ -95,23 +106,6 @@ export default function StudentProfile() {
           setSkills(resolvedProfile.skills);
         }
       }
-
-      if (docsRes) {
-        setDocuments(Array.isArray(docsRes) ? docsRes : (docsRes.documents || docsRes.data || []));
-      }
-
-      if (listRes) {
-        setResumes(Array.isArray(listRes) ? listRes : (listRes.data || []));
-      }
-      
-      if (projectsRes) {
-        setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.data || []));
-      }
-      
-      if (configRes) {
-        setOnboardingConfig(configRes.data || configRes);
-      }
-
       // Supabase direct fallback if profileData is missing domain/subdomain
       if (supabase && user?.id && (!resolvedProfile?.domain || !resolvedProfile?.bio)) {
         try {
@@ -120,7 +114,6 @@ export default function StudentProfile() {
             .select('bio, domain_id, subdomain_id, interest_id')
             .eq('id', user.id)
             .maybeSingle();
-
           if (studentRow) {
             setProfileData(prev => ({
               ...prev,
@@ -131,7 +124,6 @@ export default function StudentProfile() {
           // Ignore direct query failure
         }
       }
-
       // Fallback skills from localStorage if backend returned empty
       if ((!resolvedProfile?.skills || resolvedProfile.skills.length === 0) && user?.id) {
         const saved = getSavedResumeAnalysis(user.id);
@@ -139,24 +131,55 @@ export default function StudentProfile() {
           setSkills(saved.skills);
         }
       }
-    } catch (err) {
-      console.error('Error fetching student profile data:', err);
+      setProfileLoading(false);
+    }).catch(() => setProfileLoading(false));
+
+    apiFetch('/api/student/projects', 15000).then(projectsRes => {
+      if (projectsRes) {
+        setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.data || []));
+      }
+      setProjectsLoading(false);
+    }).catch(() => setProjectsLoading(false));
+
+    apiFetch('/api/resume/documents', 15000).then(docsRes => {
+      if (docsRes) {
+        setDocuments(Array.isArray(docsRes) ? docsRes : (docsRes.documents || docsRes.data || []));
+      }
+      setDocsLoading(false);
+    }).catch(() => setDocsLoading(false));
+
+    apiFetch('/api/resume/list', 15000).then(listRes => {
+      if (listRes) {
+        setResumes(Array.isArray(listRes) ? listRes : (listRes.data || []));
+      }
+      setResumesLoading(false);
+    }).catch(() => setResumesLoading(false));
+
+    if (cachedConfig) {
+      setOnboardingConfig(cachedConfig.data || cachedConfig);
+      setConfigLoading(false);
+    } else {
+      apiFetch('/api/onboarding/config', 15000).then(configRes => {
+        if (configRes) {
+          try {
+            sessionStorage.setItem('onboarding_config', JSON.stringify(configRes));
+          } catch (e) {}
+          setOnboardingConfig(configRes.data || configRes);
+        }
+        setConfigLoading(false);
+      }).catch(() => setConfigLoading(false));
     }
   }, [apiFetch, user?.id]);
 
   useEffect(() => {
     if (authLoading) return;
-
-    let mounted = true;
-    setLoading(true);
-
-    loadData().finally(() => {
-      if (mounted) setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-    };
+    // Reset per-section loading states on re-fetch
+    setProfileLoading(true);
+    setProjectsLoading(true);
+    setDocsLoading(true);
+    setResumesLoading(true);
+    setConfigLoading(true);
+    loadData();
   }, [authLoading, loadData]);
 
   const [isEditingDomain, setIsEditingDomain] = useState(false);
@@ -275,23 +298,40 @@ export default function StudentProfile() {
   const subdomain = profileData?.subdomain || '';
   const interest = profileData?.interest || '';
 
-  if (authLoading || loading) {
+  // Helper: inline skeleton loader for per-section progressive rendering
+  const SectionSkeleton = ({ lines = 2 }) => (
+    <div style={{ padding: '12px 0' }}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <div key={i} style={{
+          height: 14, borderRadius: 4, marginBottom: 8,
+          background: 'linear-gradient(90deg, #E2E8F0 25%, #F1F5F9 50%, #E2E8F0 75%)',
+          backgroundSize: '200% 100%',
+          animation: 'shimmer 1.5s ease-in-out infinite',
+          width: i === lines - 1 ? '60%' : '100%',
+        }} />
+      ))}
+    </div>
+  );
+
+  if (authLoading) {
     return (
       <main className="view-section active" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: 16 }}>
         <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }}></div>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading profile details...</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Authenticating...</p>
       </main>
     );
   }
 
   return (
+    <>
+    <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
     <main className="view-section active">
       <div className="profile-hero">
         <div className="ph-avatar">
           <img src={avatarUrl} alt={studentName} />
         </div>
         <div className="ph-info">
-          {!isEditingName ? (
+          {profileLoading ? <SectionSkeleton lines={2} /> : !isEditingName ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1 style={{ margin: 0 }}>{studentName}</h1>
               <button type="button" onClick={handleEditNameStart} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontSize: 14 }} title="Edit Name">
@@ -339,7 +379,7 @@ export default function StudentProfile() {
                 </div>
               )}
             </div>
-            {!isEditingBio ? (
+            {profileLoading ? <SectionSkeleton lines={3} /> : !isEditingBio ? (
               <p className="p-text" style={{ marginTop: 8 }}>{bio || <em style={{ color: '#94A3B8' }}>No bio added yet. Click edit to add your bio.</em>}</p>
             ) : (
               <div style={{ marginTop: 8 }}>
@@ -443,7 +483,7 @@ export default function StudentProfile() {
             )}
 
             <div className="project-list" style={{ marginTop: 12 }}>
-              {projects.length > 0 ? projects.map(project => {
+              {projectsLoading ? <SectionSkeleton lines={4} /> : projects.length > 0 ? projects.map(project => {
                 const formatDate = (ds) => {
                   if (!ds) return '';
                   try {
@@ -520,49 +560,79 @@ export default function StudentProfile() {
             </div>
 
             {skills.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {skills.map(skill => {
-                  const name = skill.skill_name || skill.skill || skill.name || 'Skill';
-                  const score = Math.round(Number(skill.proficiency_score || skill.score || 75));
-                  const isVerified = Boolean(skill.is_verified || skill.isVerified || skill.status === 'verified');
-                  const badge = getSourceBadge(skill.source, isVerified);
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {skills.slice(0, 5).map((skill, index) => {
+                    const name = typeof skill === 'string'
+                      ? skill
+                      : (skill.skill_name || skill.skill || skill.name || skill.raw_skill_name || skill.matched_skill_name || `Skill #${index + 1}`);
+                    const rawScore = typeof skill === 'object' ? (skill.proficiency_score ?? skill.confidence ?? skill.score ?? 75) : 75;
+                    const numScore = Number(rawScore);
+                    const score = Number.isFinite(numScore) && numScore > 0
+                      ? (numScore <= 1.0 ? Math.round(numScore * 100) : Math.min(100, Math.round(numScore)))
+                      : 75;
+                    const isVerified = typeof skill === 'object' ? Boolean(skill.is_verified || skill.isVerified || skill.status === 'verified') : false;
+                    const badge = getSourceBadge(typeof skill === 'object' ? skill.source : null, isVerified);
 
-                  return (
-                    <div
-                      key={skill.skill_id || name}
-                      style={{
-                        padding: '10px 14px',
-                        background: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 8,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <strong style={{ fontSize: 13, color: '#0F172A' }}>{name}</strong>
-                          {isVerified && <i className="ph-fill ph-check-circle" style={{ color: '#10B981', fontSize: 14 }}></i>}
-                        </div>
-                        <span style={{ fontSize: 11, color: '#64748B' }}>{score}% Confidence</span>
-                      </div>
-                      <span
+                    return (
+                      <div
+                        key={typeof skill === 'object' ? (skill.skill_id || name + index) : (name + index)}
                         style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: 4,
-                          background: badge.bg,
-                          color: badge.color,
+                          padding: '10px 14px',
+                          background: '#FFFFFF',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: 8,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
                         }}
                       >
-                        {badge.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <strong style={{ fontSize: 13, color: '#0F172A' }}>{name}</strong>
+                            {isVerified && <i className="ph-fill ph-check-circle" style={{ color: '#10B981', fontSize: 14 }}></i>}
+                          </div>
+                          <span style={{ fontSize: 11, color: '#64748B' }}>{score}% Confidence</span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: badge.bg,
+                            color: badge.color,
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                  <Link
+                    to="/student/portfolio"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid #CBD5E1',
+                      background: '#F8FAFC',
+                      color: '#2563EB',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    View More Skills ({skills.length} Total) <i className="ph ph-arrow-right" style={{ marginLeft: 4 }}></i>
+                  </Link>
+                </div>
+              </>
             ) : (
               <div className="empty-state" style={{ padding: 16, textAlign: 'center', background: '#F8FAFC', borderRadius: 8, border: '1px dashed #CBD5E1' }}>
                 <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 8px 0' }}>No skills recorded yet.</p>
@@ -619,5 +689,6 @@ export default function StudentProfile() {
         </aside>
       </div>
     </main>
+    </>
   );
 }
