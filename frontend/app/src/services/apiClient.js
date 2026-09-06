@@ -12,23 +12,53 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, ''
  * Retrieves the current Supabase access token.
  * Returns null if not logged in or token is unavailable.
  */
-export async function getAccessToken() {
+let cachedAccessToken = null;
+let lastAccessTokenCheck = 0;
+
+function isStaleSessionError(error) {
+    const message = (error && (error.message || String(error))) || '';
+    return /session_not_found|session.*does not exist|invalid.*session|expired.*session|jwt/i.test(message);
+}
+
+export async function getAccessToken(forceRefresh = false) {
+    if (!supabase) return null;
+
+    const now = Date.now();
+    if (!forceRefresh && cachedAccessToken && now - lastAccessTokenCheck < 15000) {
+        return cachedAccessToken;
+    }
+
     try {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-            console.error('Supabase session error:', error);
+            const message = error.message || String(error);
+            if (isStaleSessionError(error)) {
+                console.warn('Clearing stale Supabase session:', message);
+                try {
+                    await supabase.auth.signOut();
+                } catch {
+                    // Ignore logout errors from a stale or uninitialized session.
+                }
+                cachedAccessToken = null;
+                lastAccessTokenCheck = 0;
+                return null;
+            }
+            console.error('Supabase session error:', message);
+            cachedAccessToken = null;
+            lastAccessTokenCheck = 0;
             return null;
         }
 
         const token = data.session?.access_token || null;
-
-        console.log('SUPABASE SESSION:', data.session);
-        console.log('ACCESS TOKEN EXISTS:', !!token);
+        cachedAccessToken = token;
+        lastAccessTokenCheck = now;
 
         return token;
     } catch (err) {
         console.error('Error fetching access token:', err);
+        cachedAccessToken = null;
+        lastAccessTokenCheck = 0;
         return null;
     }
 }

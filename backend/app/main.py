@@ -50,6 +50,8 @@ from app.api.onboarding import router as onboarding_router
 app.include_router(onboarding_router)
 from app.api.student_profile import router as student_profile_router
 app.include_router(student_profile_router)
+from app.api.institution import router as institution_router
+app.include_router(institution_router)
 
 @app.get("/health")
 def health():

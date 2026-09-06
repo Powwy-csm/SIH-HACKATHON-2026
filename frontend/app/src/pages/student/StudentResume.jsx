@@ -6,6 +6,7 @@ import {
   clearResumeAnalysis,
   isResumeAnalyzed,
 } from '../../utils/resumeSkillsStorage';
+import { fetchStudentSkills } from '../../utils/studentSkills';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const POLL_INTERVAL_MS = 2500;
@@ -286,6 +287,15 @@ export default function StudentResume() {
     }
 
     try {
+      try {
+        const persistedSkills = await fetchStudentSkills(user?.id);
+        if (persistedSkills.length > 0) {
+          setSkills(persistedSkills);
+        }
+      } catch {
+        // Resume intelligence remains available while persisted skills load.
+      }
+
       // 1. Fetch lightweight status and file metadata from backend
       let latestData = null;
       try {
@@ -1708,5 +1718,3 @@ export default function StudentResume() {
     </main>
   );
 }
-
-

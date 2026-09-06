@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getSavedResumeAnalysis } from '../../utils/resumeSkillsStorage';
+import {
+  fetchStudentSkillsWithOptions,
+  getCachedStudentSkills,
+} from '../../utils/studentSkills';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -24,22 +27,10 @@ function getAccessToken() {
 
 export default function StudentPortfolio() {
   const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
-  const [skills, setSkills] = useState(() => {
-    const saved = getSavedResumeAnalysis(user?.id);
-    return saved?.skills || [];
-  });
+  const [skills, setSkills] = useState(() => getCachedStudentSkills(user?.id));
   const [documents, setDocuments] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (user?.id) {
-      const saved = getSavedResumeAnalysis(user.id);
-      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
-        setSkills(saved.skills);
-      }
-    }
-  }, [user?.id]);
 
   const apiFetch = useCallback(async (path, timeoutMs = 3500) => {
     const accessToken = authContextToken || getAccessToken();
@@ -71,10 +62,18 @@ export default function StudentPortfolio() {
     let mounted = true;
     const loadData = async () => {
       try {
-        const saved = getSavedResumeAnalysis(user?.id);
-        const [docsRes, listRes] = await Promise.all([
+        const cachedSkills = getCachedStudentSkills(user?.id);
+        if (cachedSkills.length > 0 && mounted) {
+          setSkills(cachedSkills);
+        }
+
+        const [docsRes, listRes, studentSkills] = await Promise.all([
           apiFetch('/api/resume/documents', 3000),
           apiFetch('/api/resume/list', 3000),
+          fetchStudentSkillsWithOptions({
+            studentId: user?.id,
+            forceRefresh: true,
+          }),
         ]);
 
         if (!mounted) return;
@@ -85,20 +84,7 @@ export default function StudentPortfolio() {
           setResumes(rList);
         }
 
-        const hasSavedSkills = saved && Array.isArray(saved.skills) && saved.skills.length > 0;
-        if (!hasSavedSkills && listRes && listRes.length > 0) {
-          const intelRes = await apiFetch('/api/resume/intelligence', 4000);
-          if (mounted && intelRes && Array.isArray(intelRes.skills) && intelRes.skills.length > 0) {
-            setSkills(intelRes.skills);
-            if (user?.id) {
-              saveResumeAnalysis(user.id, {
-                resumeId: listRes[0]?.resume_id,
-                skills: intelRes.skills,
-                matches: intelRes.recommendations || [],
-              });
-            }
-          }
-        }
+        if (mounted) setSkills(studentSkills);
       } catch (err) {
         console.error('Error loading portfolio data:', err);
       }
@@ -112,7 +98,7 @@ export default function StudentPortfolio() {
   }, [authLoading, apiFetch, user?.id]);
 
   const studentName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Student');
-  const verifiedSkills = skills.filter(s => s.is_verified || s.isVerified || s.status === 'verified');
+  const verifiedSkills = skills.filter(s => s.isVerified);
 
   if (authLoading) {
     return (
@@ -184,10 +170,10 @@ export default function StudentPortfolio() {
           {skills.length > 0 ? (
             <div className="skill-tags">
               {skills.map(skill => {
-                const isVerified = skill.is_verified || skill.isVerified || skill.status === 'verified';
+                const isVerified = skill.isVerified;
                 return (
-                  <span className={`s-tag ${isVerified ? 'verified' : ''}`} key={skill.skill_id || skill.skill_name || skill.name}>
-                    {skill.skill_name || skill.name || skill.raw_skill_name}
+                  <span className={`s-tag ${isVerified ? 'verified' : ''}`} key={skill.id}>
+                    {skill.name}
                     {isVerified && <i className="ph-fill ph-check-circle" style={{ marginLeft: 4 }}></i>}
                   </span>
                 );

@@ -107,7 +107,8 @@ def fetch_student_skills(client: Client, student_id: str) -> list[dict]:
     res = _execute_with_retry(
         client.table("student_skills")
         .select(
-            "skill_id, proficiency, proficiency_score, is_verified, source, evidence_url, source_confidence, "
+            "skill_id, proficiency, self_report_score, assessment_score, evidence_score, proficiency_score, "
+            "is_verified, source, evidence_url, source_confidence, "
             "skills(name, skill_categories(name))"
         )
         .eq("student_id", student_id)
@@ -116,12 +117,18 @@ def fetch_student_skills(client: Client, student_id: str) -> list[dict]:
     for r in res.data or []:
         skill = r.get("skills") or {}
         category = (skill.get("skill_categories") or {}).get("name") if skill else None
+        proficiency_score = r.get("proficiency_score")
         rows.append({
             "skill_id": r["skill_id"],
             "skill_name": skill.get("name", "Unknown"),
             "category_name": category or "Uncategorized",
-            "proficiency_score": float(r.get("proficiency_score") or 0),
+            "proficiency_score": (
+                float(proficiency_score) if proficiency_score is not None else None
+            ),
             "proficiency": r.get("proficiency"),
+            "self_report_score": r.get("self_report_score"),
+            "assessment_score": r.get("assessment_score"),
+            "evidence_score": r.get("evidence_score"),
             "is_verified": bool(r.get("is_verified")),
             "source": r.get("source"),
             "evidence_url": r.get("evidence_url"),
@@ -132,7 +139,7 @@ def fetch_student_skills(client: Client, student_id: str) -> list[dict]:
 
 def student_skill_levels(rows: list[dict]) -> dict[str, float]:
     """Collapse fetch_student_skills() rows into {skill_id: proficiency_score}."""
-    return {r["skill_id"]: r["proficiency_score"] for r in rows}
+    return {r["skill_id"]: r["proficiency_score"] or 0 for r in rows}
 
 
 def fetch_academic_records(client: Client, student_id: str) -> dict | None:

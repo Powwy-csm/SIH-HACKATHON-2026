@@ -170,6 +170,28 @@ class FakeDB:
 
     def resolve(self, table_name: str, row: dict) -> dict:
         row = dict(row)
+        if table_name == "students":
+            student_id = row.get("id")
+            row["student_skills"] = [
+                self.resolve("student_skills", dict(s))
+                for s in self.tables.get("student_skills", [])
+                if s.get("student_id") == student_id
+            ]
+            row["student_projects"] = [
+                dict(p) for p in self.tables.get("student_projects", []) if p.get("student_id") == student_id
+            ]
+            row["academic_records"] = [
+                dict(a) for a in self.tables.get("academic_records", []) if a.get("student_id") == student_id
+            ]
+            if row.get("domain_id"):
+                domain = next((d for d in self.tables.get("domains", []) if d["id"] == row["domain_id"]), None)
+                row["domains"] = {"name": domain["name"]} if domain else None
+            if row.get("subdomain_id"):
+                subdomain = next((s for s in self.tables.get("subdomains", []) if s["id"] == row["subdomain_id"]), None)
+                row["subdomains"] = {"name": subdomain["name"]} if subdomain else None
+            if row.get("interest_id"):
+                field = next((f for f in self.tables.get("fields_of_interest", []) if f["id"] == row["interest_id"]), None)
+                row["fields_of_interest"] = {"name": field["name"]} if field else None
         if table_name == "student_skills" and "skill_id" in row:
             skill = next((s for s in self.tables.get("skills", []) if s["id"] == row["skill_id"]), None)
             if skill:

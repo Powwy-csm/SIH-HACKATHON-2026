@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getSavedResumeAnalysis } from '../../utils/resumeSkillsStorage';
+import { fetchStudentSkills } from '../../utils/studentSkills';
 import { opportunityList as fallbackOpportunities } from './studentPortalData';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -33,20 +34,15 @@ export default function StudentOpportunities() {
     return saved?.matches || [];
   });
   const [hasSkills, setHasSkills] = useState(() => {
-    const saved = getSavedResumeAnalysis(user?.id);
-    return Boolean(saved && Array.isArray(saved.skills) && saved.skills.length > 0);
+    return false;
   });
   const [appliedRoles, setAppliedRoles] = useState({});
 
   useEffect(() => {
     if (user?.id) {
-      const saved = getSavedResumeAnalysis(user.id);
-      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
-        setHasSkills(true);
-        if (Array.isArray(saved.matches) && saved.matches.length > 0) {
-          setRecommendations(saved.matches);
-        }
-      }
+      fetchStudentSkills(user.id)
+        .then(skills => setHasSkills(skills.length > 0))
+        .catch(() => setHasSkills(false));
     }
   }, [user?.id]);
 
@@ -80,20 +76,20 @@ export default function StudentOpportunities() {
     let mounted = true;
     const fetchIntel = async () => {
       const saved = getSavedResumeAnalysis(user?.id);
-      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
-        setHasSkills(true);
-        if (Array.isArray(saved.matches) && saved.matches.length > 0) {
-          setRecommendations(saved.matches);
-          return;
-        }
+      if (saved && Array.isArray(saved.matches) && saved.matches.length > 0) {
+        setRecommendations(saved.matches);
+      }
+
+      try {
+        const studentSkills = await fetchStudentSkills(user?.id);
+        if (mounted) setHasSkills(studentSkills.length > 0);
+      } catch {
+        if (mounted) setHasSkills(false);
       }
 
       const data = await apiFetch('/api/resume/intelligence');
       if (!mounted || !data) return;
 
-      if (Array.isArray(data.skills) && data.skills.length > 0) {
-        setHasSkills(true);
-      }
       if (Array.isArray(data.recommendations) && data.recommendations.length > 0) {
         setRecommendations(data.recommendations);
       }

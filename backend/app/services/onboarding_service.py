@@ -57,7 +57,7 @@ def get_config(client: Client):
     def _fetch_skills():
         t4 = time.time()
         try:
-            res = client.table("skills").select("id, name, category_id").execute()
+            res = client.table("skills").select("id, name, domain_id, category").execute()
             data = res.data or []
             print(f"[PERF]   get_config (parallel) > skills: {time.time() - t4:.3f}s")
             return data
@@ -89,36 +89,66 @@ def get_config(client: Client):
     }
 
 def complete_onboarding(client: Client, service_client: Client, student_id: str, data: dict):
-    # 1. Ensure student profile exists. It should be created by trigger, but just in case:
-    student_res = client.table("students").select("id").eq("id", student_id).execute()
+    # 1. Ensure the profile and student row exist. This flow must work on a
+    #    brand-new student account even when the DB row was never initialized.
+    profile_res = service_client.table("profiles").select("id").eq("id", student_id).maybe_single().execute()
+    if not profile_res.data:
+        name = (data.get("name") or "").strip() or "Student"
+        email = (data.get("_email") or data.get("email") or "").strip()
+        if not email:
+            raise ValueError(
+                "Cannot initialize the student profile without the authenticated email."
+            )
+        service_client.table("profiles").upsert(
+            {
+                "id": student_id,
+                "full_name": name,
+                "email": email,
+                "role": "student",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="id",
+        ).execute()
+
+    student_res = service_client.table("students").select("id").eq("id", student_id).maybe_single().execute()
     if not student_res.data:
-        # Create profile and student if trigger didn't fire or failed
-        client.table("profiles").insert({"id": student_id, "role": "student"}).execute()
-        client.table("students").insert({"id": student_id, "is_placed": False}).execute()
+        service_client.table("students").upsert(
+            {"id": student_id, "is_placed": False},
+            on_conflict="id",
+        ).execute()
 
     # 2. Update student row
     update_payload = {
         "bio": data.get("bio"),
         "domain_id": data.get("domain_id"),
+        "subdomain_id": data.get("subdomain_id"),
+        "interest_id": data.get("interest_id"),
         "onboarding_completed": True
     }
-    # Add optional keys safely
-    if "subdomain_id" in data:
-        update_payload["subdomain_id"] = data["subdomain_id"]
-    if "interest_id" in data:
-        update_payload["interest_id"] = data["interest_id"]
-        
-    client.table("students").update(update_payload).eq("id", student_id).execute()
+    service_client.table("students").update(update_payload).eq("id", student_id).execute()
+
+    # Keep the public profile name and Auth metadata in sync.
+    metadata = {"onboarding_completed": True}
+    name = (data.get("name") or "").strip()
+    if name:
+        metadata["full_name"] = name
+        service_client.table("profiles").update(
+            {
+                "full_name": name,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("id", student_id).execute()
 
     # 3. Update auth metadata using the service client (best-effort)
     try:
         service_client.auth.admin.update_user_by_id(
             student_id,
-            attributes={"user_metadata": {"onboarding_completed": True}},
+            attributes={"user_metadata": metadata},
         )
     except Exception as exc:
         logger.warning(
-            "Could not sync onboarding_completed to Auth user_metadata for student %s: %s",
+            "Could not sync onboarding metadata to Auth user_metadata for student %s: %s",
             student_id,
             exc,
         )
@@ -128,12 +158,14 @@ def complete_onboarding(client: Client, service_client: Client, student_id: str,
     for s in skills:
         skill_id = s.get("skill_id")
         proficiency = s.get("proficiency")
-        
+        if not skill_id:
+            continue
+
         self_report_score = get_self_report_score(proficiency)
-        
+
         # Calculate initial confidence (only self-report is present right now)
         confidence = calculate_confidence(self_report_score, 0, 0)
-        
+
         # Upsert student_skills
         # We assume evidence_score and assessment_score are 0 by default.
         upsert_data = {
@@ -141,12 +173,17 @@ def complete_onboarding(client: Client, service_client: Client, student_id: str,
             "skill_id": skill_id,
             "proficiency": proficiency,
             "self_report_score": self_report_score,
-            "proficiency_score": confidence, # Using this as final confidence score
+            "assessment_score": 0,
+            "evidence_score": 0,
+            "proficiency_score": confidence,  # Using this as final confidence score
             "source": "self_report",
             "is_verified": False,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
-        client.table("student_skills").upsert(upsert_data).execute()
+        service_client.table("student_skills").upsert(
+            upsert_data,
+            on_conflict="student_id,skill_id",
+        ).execute()
 
     return {"status": "success"}
 

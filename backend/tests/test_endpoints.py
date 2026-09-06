@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.deps.auth import CurrentStudent, get_current_student
 from app.deps.supabase_clients import get_service_client
 from app.main import app
+from app.services import onboarding_service
 from tests.mock_supabase import build_mock_client
 
 
@@ -368,4 +369,34 @@ def test_onboarding_complete_handles_auth_metadata_sync_failure(api, mock_client
     assert student1["bio"] == "Developer with best effort auth sync."
     assert student1["onboarding_completed"] is True
 
+
+def test_onboarding_config_uses_existing_skill_library_and_missing_student_rows_are_initialized():
+    client = build_mock_client("student-2")
+    client._db.tables["profiles"] = []
+    client._db.tables["students"] = []
+
+    config = onboarding_service.get_config(client)
+    assert config["skills"]
+    assert any(skill["name"] == "Python" for skill in config["skills"])
+    assert any(skill["name"] == "SQL" for skill in config["skills"])
+
+    result = onboarding_service.complete_onboarding(
+        client,
+        client,
+        "student-2",
+        {
+            "name": "Aditi Sharma",
+            "_email": "aditi@example.edu",
+            "bio": "Ready to onboard.",
+            "domain_id": "domain-cs",
+            "skills": [{"skill_id": "skill-python", "proficiency": "beginner"}],
+        },
+    )
+
+    assert result["status"] == "success"
+    assert any(row["id"] == "student-2" for row in client._db.tables["students"])
+    assert any(
+        row["student_id"] == "student-2" and row["skill_id"] == "skill-python"
+        for row in client._db.tables["student_skills"]
+    )
 

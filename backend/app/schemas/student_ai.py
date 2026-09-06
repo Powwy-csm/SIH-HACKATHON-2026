@@ -26,10 +26,14 @@ class SkillItem(BaseModel):
     skill_name: str
     category_name: str | None = None
     proficiency: str | None = None
-    proficiency_score: float = 0
+    proficiency_score: float | None = None
+    self_report_score: float | None = None
+    assessment_score: float | None = None
+    evidence_score: float | None = None
     is_verified: bool = False
     source: str | None = None
     evidence_url: str | None = None
+    source_confidence: float | None = None
 
 
 class AcademicRecord(BaseModel):

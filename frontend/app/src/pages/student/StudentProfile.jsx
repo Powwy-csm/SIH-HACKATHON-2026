@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { getSavedResumeAnalysis } from '../../utils/resumeSkillsStorage';
+import {
+  fetchStudentProfile,
+  clearStudentProfileCache,
+  getSkillSourceLabel,
+  normalizeStudentSkills,
+} from '../../utils/studentSkills';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -51,7 +56,7 @@ export default function StudentProfile() {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [docsLoading, setDocsLoading] = useState(true);
   const [resumesLoading, setResumesLoading] = useState(true);
-  const [configLoading, setConfigLoading] = useState(true);
+  const [configLoading, setConfigLoading] = useState(false);
 
   const apiFetch = useCallback(async (path, timeoutMs = 15000, options = {}) => {
     const accessToken = authContextToken || getAccessToken();
@@ -80,31 +85,13 @@ export default function StudentProfile() {
   }, [authContextToken]);
 
   const loadData = useCallback(async () => {
-    // Check sessionStorage for cached onboarding config first
-    let cachedConfig = null;
-    try {
-      const stored = sessionStorage.getItem('onboarding_config');
-      if (stored) {
-        cachedConfig = JSON.parse(stored);
-      }
-    } catch (e) {
-      // ignore parse error
-    }
-
     // Fire all endpoints independently — each updates its own section as it resolves.
     // This enables progressive rendering instead of waiting for the slowest endpoint.
 
-    apiFetch('/api/student/profile', 15000).then(async res => {
-      let profileRes = res;
-      if (!profileRes) {
-        profileRes = await apiFetch('/api/student-ai/profile/analyze', 15000, { method: 'POST' });
-      }
-      const resolvedProfile = profileRes?.data || profileRes;
+    fetchStudentProfile({ studentId: user?.id }).then(async resolvedProfile => {
       if (resolvedProfile) {
         setProfileData(resolvedProfile);
-        if (Array.isArray(resolvedProfile.skills) && resolvedProfile.skills.length > 0) {
-          setSkills(resolvedProfile.skills);
-        }
+        setSkills(normalizeStudentSkills(resolvedProfile));
       }
       // Supabase direct fallback if profileData is missing domain/subdomain
       if (supabase && user?.id && (!resolvedProfile?.domain || !resolvedProfile?.bio)) {
@@ -124,15 +111,16 @@ export default function StudentProfile() {
           // Ignore direct query failure
         }
       }
-      // Fallback skills from localStorage if backend returned empty
-      if ((!resolvedProfile?.skills || resolvedProfile.skills.length === 0) && user?.id) {
-        const saved = getSavedResumeAnalysis(user.id);
-        if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
-          setSkills(saved.skills);
-        }
+      setProfileLoading(false);
+    }).catch(async () => {
+      const fallback = await apiFetch('/api/student-ai/profile/analyze', 15000, { method: 'POST' });
+      const resolvedProfile = fallback?.data || fallback;
+      if (resolvedProfile) {
+        setProfileData(resolvedProfile);
+        setSkills(normalizeStudentSkills(resolvedProfile));
       }
       setProfileLoading(false);
-    }).catch(() => setProfileLoading(false));
+    });
 
     apiFetch('/api/student/projects', 15000).then(projectsRes => {
       if (projectsRes) {
@@ -155,20 +143,6 @@ export default function StudentProfile() {
       setResumesLoading(false);
     }).catch(() => setResumesLoading(false));
 
-    if (cachedConfig) {
-      setOnboardingConfig(cachedConfig.data || cachedConfig);
-      setConfigLoading(false);
-    } else {
-      apiFetch('/api/onboarding/config', 15000).then(configRes => {
-        if (configRes) {
-          try {
-            sessionStorage.setItem('onboarding_config', JSON.stringify(configRes));
-          } catch (e) {}
-          setOnboardingConfig(configRes.data || configRes);
-        }
-        setConfigLoading(false);
-      }).catch(() => setConfigLoading(false));
-    }
   }, [apiFetch, user?.id]);
 
   useEffect(() => {
@@ -178,7 +152,6 @@ export default function StudentProfile() {
     setProjectsLoading(true);
     setDocsLoading(true);
     setResumesLoading(true);
-    setConfigLoading(true);
     loadData();
   }, [authLoading, loadData]);
 
@@ -202,6 +175,33 @@ export default function StudentProfile() {
       interest_id: profileData?.interest_id || ''
     });
     setIsEditingDomain(true);
+
+    try {
+      const stored = sessionStorage.getItem('onboarding_config');
+      if (stored) {
+        const cachedConfig = JSON.parse(stored);
+        setOnboardingConfig(cachedConfig.data || cachedConfig);
+        return;
+      }
+    } catch {
+      // Ignore invalid cache and fetch a fresh config.
+    }
+
+    if (onboardingConfig) return;
+
+    setConfigLoading(true);
+    apiFetch('/api/onboarding/config', 15000)
+      .then(configRes => {
+        if (configRes) {
+          try {
+            sessionStorage.setItem('onboarding_config', JSON.stringify(configRes));
+          } catch {
+            // Cache is best effort; the fetched config remains usable.
+          }
+          setOnboardingConfig(configRes.data || configRes);
+        }
+      })
+      .finally(() => setConfigLoading(false));
   };
 
   const handleSaveDomain = async () => {
@@ -216,6 +216,7 @@ export default function StudentProfile() {
     });
     if (res && res.status === 'success') {
       setIsEditingDomain(false);
+      clearStudentProfileCache(user?.id);
       loadData(); // reload to get new text names
     } else {
       alert('Failed to update domain profile.');
@@ -234,6 +235,7 @@ export default function StudentProfile() {
     });
     if (res && res.status === 'success') {
       setIsEditingBio(false);
+      clearStudentProfileCache(user?.id);
       loadData();
     } else {
       alert('Failed to update bio.');
@@ -255,6 +257,7 @@ export default function StudentProfile() {
       alert('Failed to update name: ' + error.message);
     } else {
       setIsEditingName(false);
+      clearStudentProfileCache(user?.id);
       loadData();
     }
   };
@@ -566,13 +569,9 @@ export default function StudentProfile() {
                     const name = typeof skill === 'string'
                       ? skill
                       : (skill.skill_name || skill.skill || skill.name || skill.raw_skill_name || skill.matched_skill_name || `Skill #${index + 1}`);
-                    const rawScore = typeof skill === 'object' ? (skill.proficiency_score ?? skill.confidence ?? skill.score ?? 75) : 75;
-                    const numScore = Number(rawScore);
-                    const score = Number.isFinite(numScore) && numScore > 0
-                      ? (numScore <= 1.0 ? Math.round(numScore * 100) : Math.min(100, Math.round(numScore)))
-                      : 75;
-                    const isVerified = typeof skill === 'object' ? Boolean(skill.is_verified || skill.isVerified || skill.status === 'verified') : false;
-                    const badge = getSourceBadge(typeof skill === 'object' ? skill.source : null, isVerified);
+                    const score = skill.confidence;
+                    const isVerified = skill.isVerified;
+                    const sourceLabel = getSkillSourceLabel(skill);
 
                     return (
                       <div
@@ -592,19 +591,15 @@ export default function StudentProfile() {
                             <strong style={{ fontSize: 13, color: '#0F172A' }}>{name}</strong>
                             {isVerified && <i className="ph-fill ph-check-circle" style={{ color: '#10B981', fontSize: 14 }}></i>}
                           </div>
-                          <span style={{ fontSize: 11, color: '#64748B' }}>{score}% Confidence</span>
+                          <span style={{ fontSize: 11, color: '#64748B' }}>
+                            {skill.proficiency} · {score}% confidence · {sourceLabel}
+                          </span>
+                          <div style={{ height: 5, background: '#E2E8F0', borderRadius: 999, marginTop: 5, width: 150 }}>
+                            <div style={{ height: '100%', width: `${score}%`, background: '#3B82F6', borderRadius: 999 }} />
+                          </div>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            background: badge.bg,
-                            color: badge.color,
-                          }}
-                        >
-                          {badge.label}
+                        <span style={{ fontSize: 11, color: '#64748B', textTransform: 'capitalize' }}>
+                          {skill.proficiency}
                         </span>
                       </div>
                     );

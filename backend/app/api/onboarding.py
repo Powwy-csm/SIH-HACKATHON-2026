@@ -49,7 +49,10 @@ async def complete_onboarding(
         client=current.client,
         service_client=service_client,
         student_id=current.student_id,
-        data=body.model_dump()
+        data={
+            **body.model_dump(),
+            "_email": current.email,
+        }
     )
     return result
 

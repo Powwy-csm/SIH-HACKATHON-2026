@@ -127,9 +127,13 @@ def analyze_profile(client: Client, student_id: str) -> dict:
                 "category_name": _get_category_name(r),
                 "proficiency": r.get("proficiency"),
                 "proficiency_score": r.get("proficiency_score"),
+                "self_report_score": r.get("self_report_score"),
+                "assessment_score": r.get("assessment_score"),
+                "evidence_score": r.get("evidence_score"),
                 "is_verified": r.get("is_verified"),
                 "source": r.get("source"),
                 "evidence_url": r.get("evidence_url"),
+                "source_confidence": r.get("source_confidence"),
             }
             for r in skill_rows
         ],

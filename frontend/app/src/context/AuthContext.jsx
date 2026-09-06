@@ -20,6 +20,11 @@ function mapUser(user) {
     };
 }
 
+function isStaleSessionError(error) {
+    const message = (error && (error.message || String(error))) || '';
+    return /session_not_found|session.*does not exist|invalid.*session|expired.*session|jwt/i.test(message);
+}
+
 export function AuthProvider({ children }) {
     const [session, setSession] = useState(null);
     const [user, setUser] = useState(null);
@@ -96,9 +101,21 @@ export function AuthProvider({ children }) {
             if (!mounted) return;
 
             if (error) {
-                setAuthError(error.message);
-                setSession(null);
-                setUser(null);
+                const message = error.message || String(error);
+                if (isStaleSessionError(error)) {
+                    try {
+                        await supabase.auth.signOut();
+                    } catch {
+                        // Ignore sign-out errors from stale/invalid sessions.
+                    }
+                    setAuthError('');
+                    setSession(null);
+                    setUser(null);
+                } else {
+                    setAuthError(message);
+                    setSession(null);
+                    setUser(null);
+                }
             } else {
                 setAuthError('');
                 setSession(data.session || null);
@@ -138,7 +155,17 @@ export function AuthProvider({ children }) {
     const refreshUser = async () => {
         if (!supabase) return null;
         try {
-            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const { data: { user: authUser }, error } = await supabase.auth.getUser();
+            if (error) {
+                if (isStaleSessionError(error)) {
+                    await supabase.auth.signOut();
+                    setSession(null);
+                    setUser(null);
+                    setAuthError('');
+                    return null;
+                }
+                throw error;
+            }
             if (!authUser) return null;
 
             const mapped = mapUser(authUser);

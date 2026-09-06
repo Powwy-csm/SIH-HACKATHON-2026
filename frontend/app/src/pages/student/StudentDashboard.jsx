@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getSavedResumeAnalysis, saveResumeAnalysis } from '../../utils/resumeSkillsStorage';
+import {
+  fetchStudentSkills,
+  getCachedStudentSkills,
+} from '../../utils/studentSkills';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -26,29 +29,13 @@ export default function StudentDashboard() {
   const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
-  const [skills, setSkills] = useState(() => {
-    const saved = getSavedResumeAnalysis(user?.id);
-    return saved?.skills || [];
-  });
-  const [matches, setMatches] = useState(() => {
-    const saved = getSavedResumeAnalysis(user?.id);
-    return saved?.matches || [];
-  });
+  const [skills, setSkills] = useState(() => getCachedStudentSkills(user?.id));
+  const [matches, setMatches] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [dashboardDataLoaded, setDashboardDataLoaded] = useState(false);
 
-  // Sync state if user finishes loading
-  useEffect(() => {
-    if (user?.id) {
-      const saved = getSavedResumeAnalysis(user.id);
-      if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
-        setSkills(saved.skills);
-        setMatches(saved.matches || []);
-      }
-    }
-  }, [user?.id]);
-
-  const apiFetch = useCallback(async (path, timeoutMs = 3500) => {
+  const apiFetch = useCallback(async (path, timeoutMs = 3500, options = {}) => {
     const accessToken = authContextToken || getAccessToken();
     if (!accessToken) return null;
 
@@ -57,6 +44,7 @@ export default function StudentDashboard() {
 
     try {
       const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
@@ -78,10 +66,10 @@ export default function StudentDashboard() {
     let mounted = true;
     const loadDashboardData = async () => {
       try {
-        const saved = getSavedResumeAnalysis(user?.id);
-        const [listRes, docsRes] = await Promise.all([
+        const [listRes, docsRes, studentSkills] = await Promise.all([
           apiFetch('/api/resume/list', 3000),
           apiFetch('/api/resume/documents', 3000),
+          fetchStudentSkills(user?.id),
         ]);
 
         if (!mounted) return;
@@ -95,33 +83,11 @@ export default function StudentDashboard() {
           setDocuments(dList);
         }
 
-        // Only fetch intelligence if no saved skills exist in localStorage and user has resumes
-        const hasSavedSkills = saved && Array.isArray(saved.skills) && saved.skills.length > 0;
-        if (!hasSavedSkills && listRes && listRes.length > 0) {
-          const intelRes = await apiFetch('/api/resume/intelligence', 4000);
-          if (mounted && intelRes) {
-            const rawSkills = Array.isArray(intelRes.skills) ? intelRes.skills : [];
-            const rawMatches = Array.isArray(intelRes.recommendations) ? intelRes.recommendations : [];
-            if (rawSkills.length > 0) {
-              setSkills(rawSkills);
-              setMatches(rawMatches);
-              if (user?.id) {
-                saveResumeAnalysis(user.id, {
-                  resumeId: listRes[0]?.resume_id,
-                  skills: rawSkills,
-                  matches: rawMatches,
-                });
-              }
-            }
-          }
-        }
-        // Also fetch profile analysis to load student_skills if not populated from resume
-        const profileRes = await apiFetch('/api/student-ai/profile/analyze', 3500);
-        if (mounted && profileRes && Array.isArray(profileRes.skills) && profileRes.skills.length > 0) {
-          setSkills(prev => prev.length > 0 ? prev : profileRes.skills);
-        }
+        setSkills(studentSkills);
       } catch (err) {
         console.error('Error loading dashboard data:', err);
+      } finally {
+        if (mounted) setDashboardDataLoaded(true);
       }
     };
 
@@ -136,7 +102,12 @@ export default function StudentDashboard() {
 
   const hasResume = resumes.length > 0 || Boolean(status?.resume_id);
   const hasSkills = skills.length > 0;
-  const verifiedCount = skills.filter(s => s.is_verified || s.isVerified || s.status === 'verified').length;
+  const verifiedCount = skills.filter(s => s.isVerified).length;
+  const strongSkills = skills.filter(skill => skill.confidence >= 70);
+  const developingSkills = skills.filter(skill => skill.confidence >= 40 && skill.confidence < 70);
+  const attentionSkills = skills.filter(skill => skill.confidence < 40);
+  const topStrength = skills.reduce((top, skill) => !top || skill.confidence > top.confidence ? skill : top, null);
+  const focusSkill = skills.reduce((lowest, skill) => !lowest || skill.confidence < lowest.confidence ? skill : lowest, null);
 
   // Calculate real profile completion
   const profileCompletion = Math.min(
@@ -173,7 +144,10 @@ export default function StudentDashboard() {
       </header>
 
       {/* Onboarding Guide for New Users */}
-      {!hasResume && !hasSkills && (
+      {dashboardDataLoaded &&
+        !user?.onboarding_completed &&
+        !hasResume &&
+        !hasSkills && (
         <section className="progress-section" style={{ border: '1px solid #BFDBFE', background: '#EFF6FF', borderRadius: 12, padding: 24, marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <span style={{ background: '#3B82F6', color: '#fff', padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
@@ -261,6 +235,59 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="portal-card spaced-section" style={{ padding: 20 }}>
+        <div className="section-heading" style={{ marginBottom: 16 }}>
+          <h2>YOUR SKILL READINESS</h2>
+          <p className="section-sub">Based on your persisted student skill profile.</p>
+        </div>
+
+        {skills.length === 0 ? (
+          <div className="empty-state" style={{ padding: 20, textAlign: 'center', background: '#F8FAFC', borderRadius: 8 }}>
+            <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>
+              No skills tracked yet. Complete your skill profile to see your readiness.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="metrics-grid" style={{ marginBottom: 16 }}>
+              <div className="metric-block">
+                <span className="metric-label">Skills tracked</span>
+                <span className="metric-value">{skills.length}</span>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Developing</span>
+                <span className="metric-value">{developingSkills.length}</span>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Strong</span>
+                <span className="metric-value">{strongSkills.length}</span>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Needs attention</span>
+                <span className="metric-value">{attentionSkills.length}</span>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <div style={{ background: '#F8FAFC', borderRadius: 8, padding: 12 }}>
+                <span className="metric-label">Top strength</span>
+                <strong style={{ display: 'block', marginTop: 4 }}>
+                  {topStrength?.name} · {topStrength?.confidence}%
+                </strong>
+              </div>
+              <div style={{ background: '#F8FAFC', borderRadius: 8, padding: 12 }}>
+                <span className="metric-label">Focus area</span>
+                <strong style={{ display: 'block', marginTop: 4 }}>
+                  {focusSkill?.name} · {focusSkill?.confidence}%
+                </strong>
+              </div>
+            </div>
+            <Link className="btn btn-text" to="/student/assessment" style={{ marginTop: 12 }}>
+              View Skill Gaps <i className="ph ph-arrow-right"></i>
+            </Link>
+          </>
+        )}
       </section>
 
       {/* Recommended Opportunities */}

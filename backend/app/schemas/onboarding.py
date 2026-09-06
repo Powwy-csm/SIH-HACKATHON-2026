@@ -6,6 +6,7 @@ class SkillSelection(BaseModel):
     proficiency: str  # beginner, intermediate, advanced
 
 class OnboardingCompleteRequest(BaseModel):
+    name: Optional[str] = None
     bio: Optional[str] = None
     domain_id: Optional[str] = None
     subdomain_id: Optional[str] = None
