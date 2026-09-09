@@ -1,52 +1,66 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   fetchStudentSkillsWithOptions,
   getCachedStudentSkills,
 } from '../../utils/studentSkills';
+import {
+  getSavedResumesList,
+  saveResumesList,
+  getSavedDocumentsList,
+  saveDocumentsList,
+} from '../../utils/resumeSkillsStorage';
+
+import { supabase } from '../../lib/supabase';
+import { getAccessToken, clearStaleSession } from '../../services/apiClient';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
-
-function getAccessToken() {
-  const direct = localStorage.getItem('supabase_access_token') || localStorage.getItem('access_token');
-  if (direct) return direct;
-
-  for (const key of Object.keys(localStorage)) {
-    if (!key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-    try {
-      const value = JSON.parse(localStorage.getItem(key));
-      const token = value?.access_token || value?.currentSession?.access_token;
-      if (token) return token;
-    } catch {
-      // Ignore
-    }
-  }
-  return null;
-}
 
 export default function StudentPortfolio() {
   const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
   const [skills, setSkills] = useState(() => getCachedStudentSkills(user?.id));
-  const [documents, setDocuments] = useState([]);
-  const [resumes, setResumes] = useState([]);
+  const [documents, setDocuments] = useState(() => getSavedDocumentsList(user?.id));
+  const [resumes, setResumes] = useState(() => getSavedResumesList(user?.id));
   const [loading, setLoading] = useState(false);
+  const lastReqTimeRef = useRef(0);
 
-  const apiFetch = useCallback(async (path, timeoutMs = 3500) => {
-    const accessToken = authContextToken || getAccessToken();
+  const apiFetch = useCallback(async (path, timeoutMs = 15000) => {
+    let accessToken = authContextToken || (await getAccessToken());
     if (!accessToken) return null;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(`${API_BASE_URL}${path}`, {
+      let res = await fetch(`${API_BASE_URL}${path}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
       });
+
+      if (res.status === 401 && supabase) {
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData?.session?.access_token) {
+            accessToken = refreshData.session.access_token;
+            res = await fetch(`${API_BASE_URL}${path}`, {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              signal: controller.signal,
+            });
+          } else {
+            await clearStaleSession();
+          }
+        } catch {
+          await clearStaleSession();
+        }
+      }
+
       clearTimeout(timer);
       if (!res.ok) return null;
       return await res.json();
@@ -57,9 +71,12 @@ export default function StudentPortfolio() {
   }, [authContextToken]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !user?.id) return;
 
     let mounted = true;
+    const reqId = Date.now();
+    lastReqTimeRef.current = reqId;
+
     const loadData = async () => {
       try {
         const cachedSkills = getCachedStudentSkills(user?.id);
@@ -68,23 +85,28 @@ export default function StudentPortfolio() {
         }
 
         const [docsRes, listRes, studentSkills] = await Promise.all([
-          apiFetch('/api/resume/documents', 3000),
-          apiFetch('/api/resume/list', 3000),
+          apiFetch('/api/resume/documents', 15000),
+          apiFetch('/api/resume/list', 15000),
           fetchStudentSkillsWithOptions({
             studentId: user?.id,
             forceRefresh: true,
           }),
         ]);
 
-        if (!mounted) return;
+        if (!mounted || reqId !== lastReqTimeRef.current) return;
 
-        if (docsRes) setDocuments(Array.isArray(docsRes.documents) ? docsRes.documents : (Array.isArray(docsRes) ? docsRes : []));
+        if (docsRes) {
+          const dList = Array.isArray(docsRes.documents) ? docsRes.documents : (Array.isArray(docsRes) ? docsRes : []);
+          setDocuments(dList);
+          saveDocumentsList(user?.id, dList);
+        }
         if (listRes) {
           const rList = Array.isArray(listRes) ? listRes : (listRes.data || []);
           setResumes(rList);
+          saveResumesList(user?.id, rList);
         }
 
-        if (mounted) setSkills(studentSkills);
+        if (mounted && studentSkills) setSkills(studentSkills);
       } catch (err) {
         console.error('Error loading portfolio data:', err);
       }

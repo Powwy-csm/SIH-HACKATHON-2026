@@ -163,9 +163,76 @@ export default function Login() {
                     </div>
 
                     {mode !== 'reset' && (
-                        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-                            <button type="button" className={mode === 'signin' ? 'auth-tab active' : 'auth-tab'} onClick={() => switchMode('signin')}>Sign In</button>
-                            <button type="button" className={mode === 'signup' ? 'auth-tab active' : 'auth-tab'} onClick={() => switchMode('signup')}>Create Account</button>
+                        <div
+                            className="auth-tabs"
+                            role="tablist"
+                            aria-label="Authentication mode"
+                            style={{
+                                display: 'flex',
+                                width: '100%',
+                                backgroundColor: '#F1F5F9',
+                                padding: '4px',
+                                borderRadius: '10px',
+                                marginBottom: '24px',
+                                gap: '4px',
+                                border: '1px solid #E2E8F0',
+                                boxSizing: 'border-box',
+                            }}
+                        >
+                            <button
+                                type="button"
+                                className={`auth-tab ${mode === 'signin' ? 'active' : ''}`}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    fontSize: '14px',
+                                    fontWeight: mode === 'signin' ? 700 : 600,
+                                    backgroundColor: mode === 'signin' ? '#FFFFFF' : 'transparent',
+                                    color: mode === 'signin' ? '#2563EB' : '#64748B',
+                                    border: 'none',
+                                    outline: 'none',
+                                    borderRadius: '7px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontFamily: 'inherit',
+                                    textAlign: 'center',
+                                    boxShadow: mode === 'signin' ? '0 1px 3px rgba(15, 23, 42, 0.12)' : 'none',
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    display: 'block',
+                                    width: '100%',
+                                }}
+                                onClick={() => switchMode('signin')}
+                            >
+                                Sign In
+                            </button>
+                            <button
+                                type="button"
+                                className={`auth-tab ${mode === 'signup' ? 'active' : ''}`}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 16px',
+                                    fontSize: '14px',
+                                    fontWeight: mode === 'signup' ? 700 : 600,
+                                    backgroundColor: mode === 'signup' ? '#FFFFFF' : 'transparent',
+                                    color: mode === 'signup' ? '#2563EB' : '#64748B',
+                                    border: 'none',
+                                    outline: 'none',
+                                    borderRadius: '7px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontFamily: 'inherit',
+                                    textAlign: 'center',
+                                    boxShadow: mode === 'signup' ? '0 1px 3px rgba(15, 23, 42, 0.12)' : 'none',
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    display: 'block',
+                                    width: '100%',
+                                }}
+                                onClick={() => switchMode('signup')}
+                            >
+                                Create Account
+                            </button>
                         </div>
                     )}
 

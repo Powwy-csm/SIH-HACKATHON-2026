@@ -1,6 +1,44 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../services/apiClient';
 
 export default function CompanyProfileView({ onEditProfile }) {
+    const { user } = useAuth();
+    const [company, setCompany] = useState(null);
+    const [openCount, setOpenCount] = useState(0);
+    const [appliedCount, setAppliedCount] = useState(0);
+    const [loadingCo, setLoadingCo] = useState(true);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        let mounted = true;
+        const load = async () => {
+            setLoadingCo(true);
+            try {
+                const data = await apiFetch('/api/industry/company');
+                if (!mounted) return;
+                if (data) {
+                    setCompany(data);
+                    setOpenCount(data.open_opportunities_count || 0);
+                    setAppliedCount(data.total_applications_count || 0);
+                }
+            } catch (err) {
+                console.error('CompanyProfileView load error:', err);
+            } finally {
+                if (mounted) setLoadingCo(false);
+            }
+        };
+        load();
+        return () => { mounted = false; };
+    }, [user?.id]);
+
+    const companyName = company?.name || user?.full_name || 'Your Company';
+    const companyInitials = companyName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    const sector = company?.industry_sector || 'Industry Partner';
+    const location = [company?.city, company?.state].filter(Boolean).join(', ') || 'India';
+    const website = company?.website || '';
+    const isVerified = company?.verification_status === 'verified';
+
     const handleShare = () => {
         navigator.clipboard?.writeText(window.location.href);
         alert('Public Profile URL copied to clipboard!');
@@ -14,26 +52,33 @@ export default function CompanyProfileView({ onEditProfile }) {
                 <div className="profile-hero-content">
                     <div className="profile-hero-header">
                         <div className="profile-avatar">
-                            ABC
-                            <div className="verified-badge" title="Verified Industry Partner">
-                                <i className="ph-fill ph-seal-check"></i>
-                            </div>
+                            {company?.logo_url
+                                ? <img src={company.logo_url} alt={companyName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                : companyInitials
+                            }
+                            {isVerified && (
+                                <div className="verified-badge" title="Verified Industry Partner">
+                                    <i className="ph-fill ph-seal-check"></i>
+                                </div>
+                            )}
                         </div>
                         <div className="profile-details">
                             <div className="profile-title">
-                                <h2>ABC Technologies</h2>
+                                <h2>{loadingCo ? 'Loading…' : companyName}</h2>
                             </div>
                             <p className="profile-meta">
-                                <span><i className="ph ph-buildings"></i> Enterprise Software &amp; Applied Cloud AI</span>
+                                <span><i className="ph ph-buildings"></i> {sector}</span>
                                 <span>•</span>
-                                <span><i className="ph ph-map-pin"></i> Bengaluru, Karnataka, India</span>
-                                <span>•</span>
-                                <span>
-                                    <i className="ph ph-globe"></i>{' '}
-                                    <a href="https://abctechnologies.demo" target="_blank" rel="noreferrer">
-                                        https://abctechnologies.demo
-                                    </a>
-                                </span>
+                                <span><i className="ph ph-map-pin"></i> {location}</span>
+                                {website && (
+                                    <>
+                                        <span>•</span>
+                                        <span>
+                                            <i className="ph ph-globe"></i>{' '}
+                                            <a href={website} target="_blank" rel="noreferrer">{website}</a>
+                                        </span>
+                                    </>
+                                )}
                             </p>
                         </div>
                         <div className="profile-actions">
@@ -53,24 +98,24 @@ export default function CompanyProfileView({ onEditProfile }) {
                     {/* Institutional / Company KPI Bar */}
                     <div className="profile-stats-bar">
                         <div className="p-stat">
-                            <span className="val">12</span>
+                            <span className="val">{openCount}</span>
                             <span className="lbl">Open Opportunities</span>
                         </div>
                         <div className="p-stat">
-                            <span className="val">8</span>
-                            <span className="lbl">University MoUs</span>
+                            <span className="val">{appliedCount}</span>
+                            <span className="lbl">Total Applicants</span>
                         </div>
                         <div className="p-stat">
-                            <span className="val">46</span>
-                            <span className="lbl">Students Hired</span>
+                            <span className="val">{company?.company_size || '—'}</span>
+                            <span className="lbl">Company Size</span>
                         </div>
                         <div className="p-stat">
-                            <span className="val text-success">4.8★</span>
-                            <span className="lbl">Campus Rating</span>
+                            <span className="val text-success">{isVerified ? 'Verified ✓' : 'Pending'}</span>
+                            <span className="lbl">Verification</span>
                         </div>
                         <div className="p-stat">
-                            <span className="val text-blue">₹18.5 LPA</span>
-                            <span className="lbl">Avg CTC Offered</span>
+                            <span className="val text-blue">{company?.contact_email ? '✓' : '—'}</span>
+                            <span className="lbl">Contact Email Set</span>
                         </div>
                     </div>
                 </div>
@@ -83,10 +128,11 @@ export default function CompanyProfileView({ onEditProfile }) {
                     {/* About Company */}
                     <section className="card p-28">
                         <h3 className="section-title">
-                            <i className="ph ph-info text-accent"></i> About ABC Technologies
+                            <i className="ph ph-info text-accent"></i> About {companyName}
                         </h3>
                         <p className="text-content mt-12">
-                            ABC Technologies is an enterprise innovation leader building high-throughput cloud infrastructure and generative AI fine-tuning platforms for over 500 enterprise customers globally. Through our structured campus outreach program, we collaborate directly with top engineering institutions to discover outstanding student developers, sponsor capstone labs, and host live competitive coding challenges.
+                            {company?.description ||
+                                'No description added yet. Edit your profile to add a company overview.'}
                         </p>
                         
                         <h4 className="font-bold mt-24 mb-12" style={{ fontSize: '14px' }}>

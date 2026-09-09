@@ -39,8 +39,7 @@ def fetch_comprehensive_student_data(client, student_id: str) -> dict:
         
         return response.data or {}
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Failed comprehensive fetch for {student_id}: {e}")
+        logger.warning(f"Failed comprehensive fetch for {student_id}: {e}")
         return {}
 
     
@@ -64,9 +63,9 @@ def fetch_student_row(client: Client, student_id: str) -> dict | None:
         client.table("students")
         .select("id, resume_url, linkedin_url, github_url, portfolio_url, bio, domain_id, subdomain_id, interest_id, is_placed, onboarding_completed")
         .eq("id", student_id)
-        .single()
+        .maybe_single()
     )
-    return res.data
+    return res.data if res else None
 
 def update_student_profile(
     service_client: Client,
@@ -226,6 +225,40 @@ def fetch_posting_required_skills(client: Client, posting_id: str) -> list[Requi
     return out
 
 
+def fetch_all_posting_required_skills_bulk(
+    client: Client,
+    posting_ids: list[str],
+) -> dict[str, list[RequiredSkill]]:
+    """Fetch required skills for multiple postings in ONE query.
+
+    Replaces the N-query loop pattern in opportunity_service.py.
+    Returns {posting_id: [RequiredSkill, ...]}.
+    Postings with no required skills will have an empty list.
+    """
+    if not posting_ids:
+        return {}
+    res = (
+        client.table("posting_required_skills")
+        .select("posting_id, skill_id, required_level, importance, skills(name)")
+        .in_("posting_id", posting_ids)
+        .execute()
+    )
+    result: dict[str, list[RequiredSkill]] = {pid: [] for pid in posting_ids}
+    for r in res.data or []:
+        pid = r.get("posting_id")
+        if not pid:
+            continue
+        skill = r.get("skills") or {}
+        required_skill = RequiredSkill(
+            skill_id=r["skill_id"],
+            skill_name=skill.get("name", "Unknown"),
+            required_level=float(r.get("required_level") or 0),
+            importance=r.get("importance") or "medium",
+        )
+        result.setdefault(pid, []).append(required_skill)
+    return result
+
+
 def fetch_cached_recommendations(client: Client, student_id: str, limit: int = 10) -> list[dict]:
     res = (
         client.table("recommendations")
@@ -295,6 +328,36 @@ def upsert_skill_gaps(service_client: Client, student_id: str, target_role: str,
 # students.resume_url points to the private Storage path.
 
 def fetch_latest_resume(client: Client, student_id: str) -> dict | None:
+    # First check if student has an active resume_url pointing to a storage_path
+    try:
+        student_res = client.table("students").select("resume_url").eq("id", student_id).maybe_single().execute()
+        active_path = (student_res.data or {}).get("resume_url") if student_res else None
+        if active_path:
+            res = (
+                client.table("resume_processing_jobs")
+                .select(
+                    "resume_id, student_id, storage_path, file_name, file_type, file_size, "
+                    "status, error_message, extracted_text, created_at, updated_at"
+                )
+                .eq("student_id", student_id)
+                .eq("storage_path", active_path)
+                .maybe_single()
+                .execute()
+            )
+            if res and res.data:
+                row = res.data
+                row["id"] = row.get("resume_id")
+                row["extraction_status"] = (
+                    "extracted" if row.get("extracted_text") else
+                    "failed" if row.get("status") == "failed" else
+                    "uploaded"
+                )
+                row["extraction_error"] = row.get("error_message")
+                return row
+    except Exception:
+        pass
+
+    # Fallback to the most recently updated resume
     res = (
         client.table("resume_processing_jobs")
         .select(
@@ -303,7 +366,7 @@ def fetch_latest_resume(client: Client, student_id: str) -> dict | None:
         )
         .eq("student_id", student_id)
         .not_.is_("storage_path", "null")
-        .order("created_at", desc=True)
+        .order("updated_at", desc=True)
         .limit(1)
         .execute()
     )
@@ -454,6 +517,8 @@ def delete_unverified_student_skills(
         return len(deleted_rows)
     except Exception as exc:
         logger.warning("Error deleting unverified skills: %s", exc)
+        return 0
+
 def delete_all_student_skills(
     service_client: Client,
     student_id: str,
@@ -657,6 +722,7 @@ def upsert_student_skill_ai(
     skill_id: str,
     proficiency_score: float,
     proficiency_label: str,
+    source_confidence: float | None = None,
 ) -> None:
     """Upsert on the (student_id, skill_id) primary key — safe to call
     repeatedly, never creates duplicates. Callers (skill_normalization_service)
@@ -671,6 +737,7 @@ def upsert_student_skill_ai(
             "proficiency_score": proficiency_score,
             "is_verified": False,
             "source": "ai_estimated",
+            "source_confidence": source_confidence,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         },
         on_conflict="student_id,skill_id",

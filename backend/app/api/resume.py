@@ -1,9 +1,10 @@
-from __future__ import annotations
-
+import concurrent.futures
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 
+from app.config import get_settings
 from app.deps.auth import CurrentStudent, get_current_student
 from app.deps.supabase_clients import get_service_client
 from app.schemas.resume import (
@@ -24,8 +25,13 @@ from app.services import (
     resume_intelligence_service,
     resume_service,
 )
+from app.services.profile_service import calculate_claim_confidence
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
+
+
+class ReanalyzeRequest(BaseModel):
+    resume_id: str
 
 
 @router.post("/upload", response_model=ResumeUploadResponse)
@@ -58,6 +64,66 @@ async def upload_resume(
         )
 
     return ResumeUploadResponse(**data)
+
+
+@router.post("/reanalyze", status_code=status.HTTP_202_ACCEPTED)
+async def reanalyze_resume(
+    background_tasks: BackgroundTasks,
+    body: ReanalyzeRequest,
+    current: CurrentStudent = Depends(get_current_student),
+    service_client=Depends(get_service_client),
+):
+    """Re-trigger the AI intelligence pipeline for an already-uploaded resume.
+
+    Returns 202 immediately; the frontend polls /api/resume/latest
+    for processing_status updates.
+    """
+    resume = repo.fetch_resume_for_student(service_client, current.student_id, body.resume_id)
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found. It may have been deleted or does not belong to your account.",
+        )
+
+    # Set as active resume
+    storage_path = resume.get("storage_path")
+    if storage_path:
+        repo.update_student_resume_url(service_client, current.student_id, storage_path)
+
+    # Touch updated_at so it ranks first in latest queries
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        service_client.table("resume_processing_jobs").update({
+            "updated_at": now,
+            "status": "pending",
+            "error_message": None,
+        }).eq("student_id", current.student_id).eq("resume_id", body.resume_id).execute()
+    except Exception:
+        pass
+
+    # Reset job status so the frontend knows processing has started
+    repo.upsert_resume_processing_job(
+        service_client,
+        resume_id=body.resume_id,
+        student_id=current.student_id,
+        status="pending",
+        error=None,
+    )
+
+    background_tasks.add_task(
+        resume_intelligence_service.process_resume_intelligence,
+        client=current.client,
+        service_client=service_client,
+        student_id=current.student_id,
+        resume_id=body.resume_id,
+    )
+
+    return {
+        "resume_id": body.resume_id,
+        "status": "pending",
+        "message": "AI reanalysis queued. Poll /api/resume/latest for status updates.",
+    }
 
 
 @router.get("/list", response_model=list[ResumeListItem])
@@ -130,11 +196,21 @@ def get_resume_intelligence(
             matched_skill_name=row["skill_name"],
             skill_name=row["skill_name"],
             name=row["skill_name"],
-            confidence=0.95 if row.get("is_verified") else float(row.get("source_confidence") or 0.60),
+            confidence=calculate_claim_confidence(row),
+            claim_confidence=calculate_claim_confidence(row),
+            proficiency_score=row.get("proficiency_score"),
+            self_report_score=row.get("self_report_score"),
+            assessment_score=row.get("assessment_score"),
+            evidence_score=row.get("evidence_score"),
+            source_confidence=row.get("source_confidence"),
             status="verified" if row.get("is_verified") else "unverified",
             is_verified=bool(row.get("is_verified")),
             evidence_url=row.get("evidence_url"),
-            extraction_confidence=0.95 if row.get("is_verified") else 0.60,
+            extraction_confidence=(
+                float(row["source_confidence"])
+                if row.get("source_confidence") is not None
+                else None
+            ),
             normalization_confidence=1.0,
             source=row.get("source") or ("document_verified" if row.get("is_verified") else "ai_estimated"),
             provider="",
@@ -169,6 +245,7 @@ def get_resume_intelligence(
 
 @router.post("/verify-document", response_model=DocumentVerificationResponse)
 async def verify_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current: CurrentStudent = Depends(get_current_student),
     service_client=Depends(get_service_client),
@@ -179,6 +256,7 @@ async def verify_document(
         service_client=service_client,
         student_id=current.student_id,
         upload_file=file,
+        background_tasks=background_tasks,
     )
 
 
@@ -189,27 +267,32 @@ def get_student_documents(
 ):
     """List uploaded supporting proof documents and the skills they verify with preview URLs."""
     t0 = time.time()
-    from app.config import get_settings
     cfg = get_settings()
 
-    certs = repo.fetch_student_certifications(current.client, current.student_id)
-    skills = repo.fetch_student_skills(current.client, current.student_id)
+    certs = repo.fetch_student_certifications(service_client, current.student_id)
+    skills = repo.fetch_student_skills(service_client, current.student_id)
+
+    if not certs:
+        return []
+
+    def _sign_doc(cred):
+        if not cred:
+            return None
+        if cred.startswith("http"):
+            return cred
+        return repo.create_resume_signed_url(
+            service_client,
+            cfg.SUPABASE_STORAGE_BUCKET,
+            cred,
+            cfg.RESUME_SIGNED_URL_EXPIRY_SECONDS,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(certs), 5)) as executor:
+        file_urls = list(executor.map(_sign_doc, [c.get("credential_url") for c in certs]))
 
     out = []
-    for c in certs:
+    for c, file_url in zip(certs, file_urls):
         cred = c.get("credential_url")
-        file_url = None
-        if cred:
-            if cred.startswith("http"):
-                file_url = cred
-            else:
-                file_url = repo.create_resume_signed_url(
-                    service_client,
-                    cfg.SUPABASE_STORAGE_BUCKET,
-                    cred,
-                    cfg.RESUME_SIGNED_URL_EXPIRY_SECONDS,
-                )
-
         doc_skills = []
         for s in skills:
             ev = s.get("evidence_url") or ""
@@ -241,6 +324,7 @@ def get_student_documents(
 @router.delete("/documents/{document_id}", response_model=DeleteItemResponse)
 def delete_document(
     document_id: str,
+    background_tasks: BackgroundTasks,
     delete_skills: bool = True,
     current: CurrentStudent = Depends(get_current_student),
     service_client=Depends(get_service_client),
@@ -252,11 +336,13 @@ def delete_document(
         student_id=current.student_id,
         cert_id=document_id,
         delete_skills=delete_skills,
+        background_tasks=background_tasks,
     )
 
 
 @router.delete("/skills", response_model=DeleteItemResponse)
 def clear_student_skills(
+    background_tasks: BackgroundTasks,
     scope: str = "unverified",
     current: CurrentStudent = Depends(get_current_student),
     service_client=Depends(get_service_client),
@@ -270,12 +356,14 @@ def clear_student_skills(
         service_client=service_client,
         student_id=current.student_id,
         scope=scope,
+        background_tasks=background_tasks,
     )
 
 
 @router.delete("/skills/{skill_identifier}", response_model=DeleteItemResponse)
 def delete_single_skill(
     skill_identifier: str,
+    background_tasks: BackgroundTasks,
     current: CurrentStudent = Depends(get_current_student),
     service_client=Depends(get_service_client),
 ):
@@ -285,12 +373,14 @@ def delete_single_skill(
         service_client=service_client,
         student_id=current.student_id,
         skill_identifier=skill_identifier,
+        background_tasks=background_tasks,
     )
 
 
 @router.delete("/{resume_id}", response_model=DeleteItemResponse)
 def delete_resume(
     resume_id: str,
+    background_tasks: BackgroundTasks,
     delete_skills: bool = True,
     current: CurrentStudent = Depends(get_current_student),
     service_client=Depends(get_service_client),
@@ -302,6 +392,5 @@ def delete_resume(
         student_id=current.student_id,
         resume_id=resume_id,
         delete_skills=delete_skills,
+        background_tasks=background_tasks,
     )
-
-

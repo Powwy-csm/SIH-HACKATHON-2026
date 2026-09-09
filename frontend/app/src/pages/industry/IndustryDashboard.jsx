@@ -1,44 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Chart } from 'chart.js/auto';
 import PostOpportunityModal from '../../components/modals/PostOpportunityModal';
-
-const INITIAL_CANDIDATES = [
-    {
-        id: 1,
-        name: 'Aarav Sharma',
-        college: 'SSN College of Engineering • B.E. Computer Science',
-        avatar: 'https://ui-avatars.com/api/?name=Aarav+Sharma&background=E2E8F0&color=172033',
-        skills: ['Python', 'Machine Learning', 'SQL', 'React'],
-        gap: 'Docker, Kubernetes',
-        match: 92,
-        stats: '4 Projects • 2 Certifications',
-    },
-    {
-        id: 2,
-        name: 'Priya Nair',
-        college: 'Madras Institute of Technology • B.Tech IT',
-        avatar: 'https://ui-avatars.com/api/?name=Priya+Nair&background=E2E8F0&color=172033',
-        skills: ['React', 'Node.js', 'AWS'],
-        gap: 'Docker, Kubernetes',
-        match: 88,
-        stats: '6 Projects • 1 Certification',
-    },
-    {
-        id: 3,
-        name: 'Rahul Verma',
-        college: 'PSG College of Technology • Data Science',
-        avatar: 'https://ui-avatars.com/api/?name=Rahul+Verma&background=E2E8F0&color=172033',
-        skills: ['Python', 'SQL', 'PowerBI'],
-        match: 84,
-        stats: '3 Projects • 3 Certifications',
-    },
-];
+import { apiFetch } from '../../services/apiClient';
 
 export default function IndustryDashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [shortlisted, setShortlisted] = useState(new Set());
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loadingDashboard, setLoadingDashboard] = useState(true);
     const chartRef = useRef(null);
     const chartInstance = useRef(null);
+
+    const loadDashboard = React.useCallback(async () => {
+        setLoadingDashboard(true);
+        try {
+            const data = await apiFetch('/api/industry/dashboard');
+            if (data) {
+                setDashboardData(data);
+            }
+        } catch (err) {
+            console.error('Failed to load industry dashboard data:', err);
+        } finally {
+            setLoadingDashboard(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadDashboard();
+    }, [loadDashboard]);
 
     // Initialize Chart.js
     useEffect(() => {
@@ -199,7 +188,7 @@ export default function IndustryDashboard() {
             {/* Dashboard Header */}
             <div className="dashboard-header">
                 <div>
-                    <h2>Good morning, ABC Technologies</h2>
+                    <h2>Good morning, {dashboardData?.company_name || 'Industry Partner'}</h2>
                     <p className="subtitle">Discover talent, build partnerships, and connect with academia.</p>
                 </div>
                 <button className="btn btn-primary" type="button" onClick={() => setIsModalOpen(true)}>
@@ -214,33 +203,29 @@ export default function IndustryDashboard() {
                         <div className="stat-card">
                             <div className="stat-icon"><i className="ph ph-briefcase"></i></div>
                             <div className="stat-info">
-                                <span className="stat-value">12</span>
+                                <span className="stat-value">{dashboardData?.open_opportunities_count ?? 0}</span>
                                 <span className="stat-label">Open Opportunities</span>
-                                <span className="stat-trend success"><i className="ph ph-arrow-up-right"></i> +3 this month</span>
                             </div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-icon"><i className="ph ph-files"></i></div>
                             <div className="stat-info">
-                                <span className="stat-value">248</span>
+                                <span className="stat-value">{dashboardData?.total_applications_count ?? 0}</span>
                                 <span className="stat-label">Total Applications</span>
-                                <span className="stat-trend success"><i className="ph ph-arrow-up-right"></i> +18% this month</span>
                             </div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-icon"><i className="ph ph-user-check"></i></div>
                             <div className="stat-info">
-                                <span className="stat-value">31</span>
+                                <span className="stat-value">{dashboardData?.shortlisted_candidates_count ?? 0}</span>
                                 <span className="stat-label">Shortlisted Candidates</span>
-                                <span className="stat-trend success"><i className="ph ph-arrow-up-right"></i> +7 this week</span>
                             </div>
                         </div>
                         <div className="stat-card">
                             <div className="stat-icon"><i className="ph ph-handshake"></i></div>
                             <div className="stat-info">
-                                <span className="stat-value">8</span>
+                                <span className="stat-value">{dashboardData?.active_collaborations_count ?? 0}</span>
                                 <span className="stat-label">Active Collaborations</span>
-                                <span className="stat-trend neutral"><i className="ph ph-minus"></i> 3 new this month</span>
                             </div>
                         </div>
                     </div>
@@ -256,67 +241,65 @@ export default function IndustryDashboard() {
                                         <h3>Top Talent Matches</h3>
                                         <p className="subtitle">Students whose skills closely match your current requirements.</p>
                                     </div>
-                                    <button className="btn-text" type="button" onClick={() => alert('Viewing all matched students...')}>
-                                        View All
-                                    </button>
                                 </div>
                                 <div className="talent-list">
-                                    {INITIAL_CANDIDATES.map(cand => {
-                                        const isCandidateShortlisted = shortlisted.has(cand.id);
-                                        return (
-                                            <div className="talent-card" key={cand.id}>
-                                                <div className="talent-basic">
-                                                    <img src={cand.avatar} alt={cand.name} className="avatar-lg" />
-                                                    <div className="talent-info">
-                                                        <h4>{cand.name}</h4>
-                                                        <p className="college">{cand.college}</p>
-                                                        <div className="skills-wrap">
-                                                            {cand.skills.map(skill => (
-                                                                <span className="skill-pill" key={skill}>{skill}</span>
-                                                            ))}
-                                                        </div>
-                                                        {cand.gap && (
-                                                            <div className="skill-gap text-danger mt-8" style={{ fontSize: '12.5px', fontWeight: 600 }}>
-                                                                <i className="ph-fill ph-warning-circle"></i> Gap: {cand.gap}
+                                    {loadingDashboard ? (
+                                        <div style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>Loading student candidates…</div>
+                                    ) : (dashboardData?.top_talent_matches || []).length > 0 ? (
+                                        (dashboardData.top_talent_matches).map(cand => {
+                                            const isCandidateShortlisted = shortlisted.has(cand.id);
+                                            return (
+                                                <div className="talent-card" key={cand.id}>
+                                                    <div className="talent-basic">
+                                                        <img src={cand.avatar} alt={cand.name} className="avatar-lg" />
+                                                        <div className="talent-info">
+                                                            <h4>{cand.name}</h4>
+                                                            <p className="college">{cand.college}</p>
+                                                            <div className="skills-wrap">
+                                                                {cand.skills.map(skill => (
+                                                                    <span className="skill-pill" key={skill}>{skill}</span>
+                                                                ))}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="talent-meta">
-                                                    <div className="match-score">
-                                                        <div className="score-text"><span>{cand.match}%</span> Match</div>
-                                                        <div className="progress-bar">
-                                                            <div
-                                                                className={`progress-fill ${cand.match >= 90 ? 'excellent' : 'good'}`}
-                                                                style={{ width: `${cand.match}%` }}
-                                                            ></div>
+                                                            {cand.gap && (
+                                                                <div className="skill-gap text-danger mt-8" style={{ fontSize: '12.5px', fontWeight: 600 }}>
+                                                                    <i className="ph-fill ph-warning-circle"></i> Gap: {cand.gap}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div className="talent-stats">{cand.stats}</div>
-                                                    <div className="talent-actions">
-                                                        <button
-                                                            className="btn btn-outline"
-                                                            type="button"
-                                                            onClick={() => alert(`Previewing digital portfolio for ${cand.name}...`)}
-                                                        >
-                                                            View Profile
-                                                        </button>
-                                                        <button
-                                                            className={`btn btn-primary btn-shortlist ${isCandidateShortlisted ? 'shortlisted' : ''}`}
-                                                            type="button"
-                                                            onClick={() => toggleShortlist(cand.id)}
-                                                        >
-                                                            {isCandidateShortlisted ? (
-                                                                <>Shortlisted <i className="ph ph-check"></i></>
-                                                            ) : (
-                                                                'Shortlist'
-                                                            )}
-                                                        </button>
+                                                    <div className="talent-meta">
+                                                        <div className="match-score">
+                                                            <div className="score-text"><span>{cand.match}%</span> Match</div>
+                                                            <div className="progress-bar">
+                                                                <div
+                                                                    className={`progress-fill ${cand.match >= 90 ? 'excellent' : 'good'}`}
+                                                                    style={{ width: `${cand.match}%` }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="talent-stats">{cand.stats}</div>
+                                                        <div className="talent-actions">
+                                                            <button
+                                                                className={`btn btn-primary btn-shortlist ${isCandidateShortlisted ? 'shortlisted' : ''}`}
+                                                                type="button"
+                                                                onClick={() => toggleShortlist(cand.id)}
+                                                            >
+                                                                {isCandidateShortlisted ? (
+                                                                    <>Shortlisted <i className="ph ph-check"></i></>
+                                                                ) : (
+                                                                    'Shortlist'
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })
+                                    ) : (
+                                        <div style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
+                                            No student candidates found in database.
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
@@ -341,36 +324,40 @@ export default function IndustryDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr>
-                                                <td className="font-medium">AI Engineer Intern</td>
-                                                <td><span className="badge badge-gray">Internship</span></td>
-                                                <td>48</td>
-                                                <td>Sep 15, 2026</td>
-                                                <td><span className="badge badge-success">Active</span></td>
-                                                <td><button className="btn-link" type="button" onClick={() => alert('Managing AI Engineer Intern applicants...')}>Manage</button></td>
-                                            </tr>
-                                            <tr>
-                                                <td className="font-medium">Data Analyst</td>
-                                                <td><span className="badge badge-gray">Internship</span></td>
-                                                <td>32</td>
-                                                <td>Sep 20, 2026</td>
-                                                <td><span className="badge badge-success">Active</span></td>
-                                                <td><button className="btn-link" type="button" onClick={() => alert('Managing Data Analyst applicants...')}>Manage</button></td>
-                                            </tr>
-                                            <tr>
-                                                <td className="font-medium">Frontend Developer</td>
-                                                <td><span className="badge badge-blue">Entry-level</span></td>
-                                                <td>61</td>
-                                                <td>Sep 25, 2026</td>
-                                                <td><span className="badge badge-success">Active</span></td>
-                                                <td><button className="btn-link" type="button" onClick={() => alert('Managing Frontend Developer applicants...')}>Manage</button></td>
-                                            </tr>
+                                            {(dashboardData?.recent_postings || []).map(p => {
+                                                const rawType = p.type || 'internship';
+                                                const typeLabel = rawType.charAt(0).toUpperCase() + rawType.slice(1);
+                                                const statusLabel = p.status === 'open' ? 'Active' : (p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : 'Active');
+                                                return (
+                                                    <tr key={p.id}>
+                                                        <td className="font-medium">{p.title || 'Untitled Opportunity'}</td>
+                                                        <td>
+                                                            <span className={`badge ${rawType === 'internship' ? 'badge-gray' : 'badge-blue'}`}>
+                                                                {typeLabel}
+                                                            </span>
+                                                        </td>
+                                                        <td>{p.applicant_count || 0}</td>
+                                                        <td>{p.deadline || '—'}</td>
+                                                        <td>
+                                                            <span className="badge badge-success">{statusLabel}</span>
+                                                        </td>
+                                                        <td>
+                                                            <a className="btn-link" href="/industry/opportunities">Manage</a>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {(!dashboardData?.recent_postings || dashboardData.recent_postings.length === 0) && (
+                                                <tr>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748B' }}>
+                                                        No active opportunities posted yet. Click "+ Post New" above to publish a role.
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
                             </section>
-
-                            {/* Application Overview Chart */}
                             
                         </div>
 
@@ -381,34 +368,26 @@ export default function IndustryDashboard() {
                                 <div className="card-header border-none">
                                     <div>
                                         <h3>Industry Skill Demand</h3>
-                                        <p className="subtitle">Skills most frequently requested in your sector.</p>
+                                        <p className="subtitle">Skills most frequently requested in your published postings.</p>
                                     </div>
                                 </div>
                                 <div className="skill-demand-list">
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>Python</span> <span>86%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '86%' }}></div></div>
-                                    </div>
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>SQL</span> <span>78%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '78%' }}></div></div>
-                                    </div>
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>Cloud / AWS</span> <span>71%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '71%' }}></div></div>
-                                    </div>
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>React</span> <span>64%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '64%' }}></div></div>
-                                    </div>
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>Machine Learning</span> <span>61%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '61%' }}></div></div>
-                                    </div>
-                                    <div className="demand-item">
-                                        <div className="demand-label"><span>Docker</span> <span>48%</span></div>
-                                        <div className="progress-bar"><div className="progress-fill" style={{ width: '48%' }}></div></div>
-                                    </div>
+                                    {(dashboardData?.skill_demand || []).map(sd => (
+                                        <div className="demand-item" key={sd.skill}>
+                                            <div className="demand-label">
+                                                <span>{sd.skill}</span>
+                                                <span>{sd.percentage}% ({sd.count} Postings)</span>
+                                            </div>
+                                            <div className="progress-bar">
+                                                <div className="progress-fill" style={{ width: `${Math.min(sd.percentage, 100)}%` }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!dashboardData?.skill_demand || dashboardData.skill_demand.length === 0) && (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: '#64748B', fontSize: '13px' }}>
+                                            No industry skill-demand data available yet.
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
@@ -416,34 +395,24 @@ export default function IndustryDashboard() {
                             <section className="card collab-card">
                                 <div className="card-header">
                                     <h3>Academia Collaboration</h3>
-                                    <span className="badge badge-blue">8 Active</span>
+                                    <span className="badge badge-blue">Partner Hub</span>
                                 </div>
                                 <div className="collab-events">
-                                    <h4 className="section-micro-title">Upcoming</h4>
+                                    <h4 className="section-micro-title">Programs &amp; Linkages</h4>
                                     <div className="event-item">
                                         <div className="event-date">
-                                            <span className="day">24</span>
-                                            <span className="month">Aug</span>
+                                            <span className="day"><i className="ph ph-handshake"></i></span>
+                                            <span className="month">Active</span>
                                         </div>
                                         <div className="event-details">
-                                            <h5>AI &amp; Cloud Workshop</h5>
-                                            <p>SSN College of Engineering</p>
-                                        </div>
-                                    </div>
-                                    <div className="event-item">
-                                        <div className="event-date">
-                                            <span className="day">02</span>
-                                            <span className="month">Sep</span>
-                                        </div>
-                                        <div className="event-details">
-                                            <h5>Industry Project Challenge</h5>
-                                            <p>ABC Tech × CSE Department</p>
+                                            <h5>Campus Hiring &amp; Internship Network</h5>
+                                            <p>BridgeX Verified University Network</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="collab-actions">
-                                    <button className="btn btn-outline" type="button" onClick={() => alert('Viewing all university collaborations...')}>View All</button>
-                                    <button className="btn btn-primary" type="button" onClick={() => alert('Initiating new academia collaboration...')}>Create Collab</button>
+                                    <a className="btn btn-outline" href="/industry/talent">Explore Talent</a>
+                                    <button className="btn btn-primary" type="button" onClick={() => setIsModalOpen(true)}>Create Program</button>
                                 </div>
                             </section>
                         </div>
@@ -451,54 +420,40 @@ export default function IndustryDashboard() {
 
                     {/* Recent Activity: Full-Width Section (Brought Down) */}
                     <section className="card application-overview-section">
-                                <div className="card-header">
-                                    <div>
-                                        <h3>Application Overview</h3>
-                                        <p className="subtitle">Candidate progression over the last 6 months.</p>
-                                    </div>
-                                </div>
-                                <div className="chart-container">
-                                    <canvas id="applicationsChart" ref={chartRef}></canvas>
-                                </div>
-                            </section>
+                        <div className="card-header">
+                            <div>
+                                <h3>Application Overview</h3>
+                                <p className="subtitle">Candidate progression over the last 6 months.</p>
+                            </div>
+                        </div>
+                        <div className="chart-container">
+                            <canvas id="applicationsChart" ref={chartRef}></canvas>
+                        </div>
+                    </section>
 
                     <section className="card recent-activity-section">
                         <div className="card-header border-none">
                             <div>
                                 <h3>Recent Activity</h3>
-                                <p className="subtitle">Live platform updates across applications, shortlists, and collaboration requests.</p>
+                                <p className="subtitle">Live platform updates across applications and candidate status updates.</p>
                             </div>
                             <span className="badge badge-blue">Live Stream</span>
                         </div>
                         <div className="recent-activity-grid">
-                            <div className="activity-card">
-                                <div className="timeline-icon bg-light-blue text-accent"><i className="ph ph-files"></i></div>
-                                <div className="timeline-content">
-                                    <p><strong>5 new applications</strong> received for AI Engineer Intern.</p>
-                                    <span className="time">2 hours ago</span>
+                            {(dashboardData?.recent_activity || []).map(act => (
+                                <div className="activity-card" key={act.id}>
+                                    <div className="timeline-icon bg-light-blue text-accent"><i className="ph ph-user-check"></i></div>
+                                    <div className="timeline-content">
+                                        <p><strong>{act.text}</strong></p>
+                                        <span className="time">{act.applied_at ? new Date(act.applied_at).toLocaleDateString() : 'Recent'}</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="activity-card">
-                                <div className="timeline-icon bg-light-success text-success"><i className="ph ph-user-check"></i></div>
-                                <div className="timeline-content">
-                                    <p><strong>Aarav Sharma</strong> was shortlisted for the ML Internship role.</p>
-                                    <span className="time">4 hours ago</span>
+                            ))}
+                            {(!dashboardData?.recent_activity || dashboardData.recent_activity.length === 0) && (
+                                <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', gridColumn: '1 / -1' }}>
+                                    No application activity yet. Applications from students will stream here in real time.
                                 </div>
-                            </div>
-                            <div className="activity-card">
-                                <div className="timeline-icon bg-light-blue text-accent"><i className="ph ph-users"></i></div>
-                                <div className="timeline-content">
-                                    <p><strong>3 students</strong> registered for your Python workshop.</p>
-                                    <span className="time">Yesterday</span>
-                                </div>
-                            </div>
-                            <div className="activity-card">
-                                <div className="timeline-icon bg-light-warning text-warning"><i className="ph ph-handshake"></i></div>
-                                <div className="timeline-content">
-                                    <p>New collaboration request from <strong>SSN College</strong>.</p>
-                                    <span className="time">Yesterday</span>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </section>
                 </section>
@@ -507,8 +462,8 @@ export default function IndustryDashboard() {
             {isModalOpen && (
                 <PostOpportunityModal
                     onClose={() => setIsModalOpen(false)}
-                    onPublish={(data) => {
-                        console.log('Published opportunity:', data);
+                    onPublish={(_data) => {
+                        loadDashboard();
                     }}
                 />
             )}

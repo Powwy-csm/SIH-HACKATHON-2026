@@ -1,83 +1,42 @@
-import React, { useState, useMemo } from 'react';
-
-const CANDIDATES = [
-    {
-        id: 1,
-        name: 'Aarav Sharma',
-        college: 'SSN College of Engineering • B.E. Computer Science',
-        avatar: 'https://ui-avatars.com/api/?name=Aarav+Sharma&background=E2E8F0&color=172033',
-        skills: ['Python', 'Machine Learning', 'SQL', 'React'],
-        gap: 'Docker, Kubernetes',
-        match: 92,
-        dept: 'Computer Science',
-        cgpa: '8.8',
-        stats: '4 Projects • 2 Certifications',
-    },
-    {
-        id: 2,
-        name: 'Priya Nair',
-        college: 'Madras Institute of Technology • B.Tech IT',
-        avatar: 'https://ui-avatars.com/api/?name=Priya+Nair&background=E2E8F0&color=172033',
-        skills: ['React', 'Node.js', 'AWS'],
-        gap: 'Docker, Kubernetes',
-        match: 88,
-        dept: 'Information Technology',
-        cgpa: '8.5',
-        stats: '6 Projects • 1 Certification',
-    },
-    {
-        id: 3,
-        name: 'Rahul Verma',
-        college: 'PSG College of Technology • Data Science',
-        avatar: 'https://ui-avatars.com/api/?name=Rahul+Verma&background=E2E8F0&color=172033',
-        skills: ['Python', 'SQL', 'PowerBI'],
-        gap: 'Cloud / AWS',
-        match: 84,
-        dept: 'Data Science',
-        cgpa: '8.2',
-        stats: '3 Projects • 3 Certifications',
-    },
-    {
-        id: 4,
-        name: 'Divya Krishnan',
-        college: 'SSN College of Engineering • B.E. ECE',
-        avatar: 'https://ui-avatars.com/api/?name=Divya+Krishnan&background=E2E8F0&color=172033',
-        skills: ['Python', 'Embedded Systems', 'IoT', 'C++'],
-        gap: 'ROS, Cloud MQTT',
-        match: 79,
-        dept: 'Electronics',
-        cgpa: '8.9',
-        stats: '5 Projects • 2 Hackathons',
-    },
-    {
-        id: 5,
-        name: 'Karthik Raja',
-        college: 'College of Engineering Guindy • B.E. CSE',
-        avatar: 'https://ui-avatars.com/api/?name=Karthik+Raja&background=E2E8F0&color=172033',
-        skills: ['Full-Stack', 'Go', 'Docker', 'PostgreSQL'],
-        gap: 'Kubernetes CI/CD',
-        match: 94,
-        dept: 'Computer Science',
-        cgpa: '9.1',
-        stats: '7 Projects • Open Source Contributor',
-    },
-];
+import React, { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '../../services/apiClient';
 
 export default function IndustryTalent() {
     const [search, setSearch] = useState('');
     const [deptFilter, setDeptFilter] = useState('All');
-    const [shortlisted, setShortlisted] = useState(new Set([1]));
+    const [candidates, setCandidates] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [shortlisted, setShortlisted] = useState(new Set());
+
+    useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const data = await apiFetch('/api/industry/talent');
+                if (mounted && data) {
+                    setCandidates(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch talent pool:', err);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+        load();
+        return () => { mounted = false; };
+    }, []);
 
     const filtered = useMemo(() => {
-        return CANDIDATES.filter(c => {
+        return candidates.filter(c => {
             const matchesQuery = !search || 
                 c.name.toLowerCase().includes(search.toLowerCase()) ||
-                c.skills.some(s => s.toLowerCase().includes(search.toLowerCase())) ||
+                (c.skills || []).some(s => s.toLowerCase().includes(search.toLowerCase())) ||
                 c.college.toLowerCase().includes(search.toLowerCase());
-            const matchesDept = deptFilter === 'All' || c.dept.toLowerCase().includes(deptFilter.toLowerCase());
+            const matchesDept = deptFilter === 'All' || (c.dept || '').toLowerCase().includes(deptFilter.toLowerCase());
             return matchesQuery && matchesDept;
         });
-    }, [search, deptFilter]);
+    }, [candidates, search, deptFilter]);
 
     const toggleShortlist = (id) => {
         setShortlisted(prev => {
@@ -88,15 +47,61 @@ export default function IndustryTalent() {
         });
     };
 
+    const [toast, setToast] = useState(null);
+    const showToast = (msg, type = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+    };
+    const exportShortlistCSV = () => {
+        const shortlistedCandidates = candidates.filter(c => shortlisted.has(c.id));
+        if (!shortlistedCandidates.length) {
+            showToast('No candidates shortlisted yet. Click "Shortlist" on a candidate first.', 'error');
+            return;
+        }
+        try {
+            const headers = ['Name', 'College', 'Department', 'CGPA', 'Match %', 'Skills'];
+            const escape  = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const rows    = shortlistedCandidates.map(c => [
+                c.name, c.college, c.dept || '', c.cgpa ?? '', c.match ?? '',
+                (c.skills || []).join('; '),
+            ].map(escape).join(','));
+            const csv  = [headers.map(escape).join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url; a.download = `shortlist_${Date.now()}.csv`; a.click();
+            URL.revokeObjectURL(url);
+            showToast(`✓ ${shortlistedCandidates.length} candidate${shortlistedCandidates.length > 1 ? 's' : ''} exported`);
+        } catch (err) {
+            console.error('Export shortlist error:', err);
+            showToast('Unable to export shortlist. Please try again.', 'error');
+        }
+    };
+
     return (
         <main className="dashboard-area">
+            {/* In-app toast */}
+            {toast && (
+                <div style={{
+                    position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+                    padding: '12px 20px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    background: toast.type === 'error' ? '#FEF2F2' : '#ECFDF5',
+                    color:      toast.type === 'error' ? '#991B1B'  : '#065F46',
+                    border:     `1px solid ${toast.type === 'error' ? '#FECACA' : '#A7F3D0'}`,
+                }}>
+                    <i className={`ph-fill ${toast.type === 'error' ? 'ph-warning-circle' : 'ph-check-circle'}`} style={{ fontSize: 16 }} />
+                    {toast.msg}
+                </div>
+            )}
             <div className="dashboard-header">
                 <div>
                     <h2>Talent Pool &amp; Candidate Discovery</h2>
                     <p className="subtitle">Search, filter, and shortlist verified engineering talent across partner campuses.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn btn-outline" type="button" onClick={() => alert('Exporting candidate shortlist...')}>
+                    <button className="btn btn-outline" type="button" onClick={exportShortlistCSV}>
                         <i className="ph ph-download-simple"></i> Export Shortlist
                     </button>
                 </div>

@@ -1,3 +1,5 @@
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -22,7 +24,18 @@ class CurrentInstitutionUser:
     email: str | None
 
 
+@dataclass
+class CurrentIndustryUser:
+    user_id: str
+    email: str | None
+    client: Client
+
+
 _auth_http_client = httpx.Client(transport=httpx.HTTPTransport(retries=5), timeout=15.0)
+
+_STUDENT_SESSION_LOCK = threading.Lock()
+_STUDENT_SESSION_CACHE: dict[str, tuple[float, str, str | None]] = {}  # token -> (expires_at, user_id, email)
+_SESSION_CACHE_TTL_SECONDS = 15.0
 
 
 def get_current_student(
@@ -45,6 +58,24 @@ def get_current_student(
             detail="Empty bearer token.",
         )
 
+    # ---------------------------------------------------------
+    # Fast path: in-memory validated token cache
+    # ---------------------------------------------------------
+    now = time.time()
+    with _STUDENT_SESSION_LOCK:
+        cached = _STUDENT_SESSION_CACHE.get(token)
+        if cached and now < cached[0]:
+            _, user_id, email = cached
+            try:
+                client = get_scoped_client(token)
+                return CurrentStudent(
+                    student_id=user_id,
+                    email=email,
+                    client=client,
+                )
+            except Exception:
+                pass
+
     settings = get_settings()
 
     # ---------------------------------------------------------
@@ -65,7 +96,6 @@ def get_current_student(
         except httpx.RequestError as exc:
             last_auth_exc = exc
             if attempt < 2:
-                import time
                 time.sleep(0.3 * (attempt + 1))
             continue
 
@@ -77,11 +107,8 @@ def get_current_student(
         ) from last_auth_exc
 
     if response.status_code != 200:
-        print(
-            "SUPABASE AUTH REJECTED:",
-            response.status_code,
-            response.text,
-        )
+        with _STUDENT_SESSION_LOCK:
+            _STUDENT_SESSION_CACHE.pop(token, None)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired Supabase session.",
@@ -163,7 +190,6 @@ def get_current_student(
         except Exception as exc:
             last_profile_exc = exc
             if attempt < 2:
-                import time
                 time.sleep(0.3 * (attempt + 1))
             continue
 
@@ -263,11 +289,19 @@ def get_current_student(
         )
 
     # ---------------------------------------------------------
-    # 6. Return authenticated student
+    # 6. Cache verified session and return authenticated student
     # ---------------------------------------------------------
+    resolved_email = profile.get("email") or email
+    with _STUDENT_SESSION_LOCK:
+        _STUDENT_SESSION_CACHE[token] = (
+            time.time() + _SESSION_CACHE_TTL_SECONDS,
+            user_id,
+            resolved_email,
+        )
+
     return CurrentStudent(
         student_id=user_id,
-        email=profile.get("email") or email,
+        email=resolved_email,
         client=client,
     )
 
@@ -280,7 +314,8 @@ def get_current_student(
 #     (RLS restricts student tables to own-row for the scoped client).
 # ─────────────────────────────────────────────────────────────────────────────
 
-_INSTITUTION_ROLES = {"institution", "institutional", "academician", "faculty"}
+_INSTITUTION_SESSION_LOCK = threading.Lock()
+_INSTITUTION_SESSION_CACHE: dict[str, tuple[float, str, str | None]] = {}
 
 
 def get_current_institution_user(
@@ -302,6 +337,16 @@ def get_current_institution_user(
             detail="Empty bearer token.",
         )
 
+    now = time.time()
+    with _INSTITUTION_SESSION_LOCK:
+        cached = _INSTITUTION_SESSION_CACHE.get(token)
+        if cached and now < cached[0]:
+            _, user_id, email = cached
+            return CurrentInstitutionUser(
+                user_id=user_id,
+                email=email,
+            )
+
     settings = get_settings()
 
     # 2. Verify the JWT directly with Supabase Auth (with retries)
@@ -320,7 +365,6 @@ def get_current_institution_user(
         except Exception as exc:  # httpx.RequestError
             last_exc = exc
             if attempt < 2:
-                import time
                 time.sleep(0.3 * (attempt + 1))
 
     if response is None:
@@ -369,7 +413,6 @@ def get_current_institution_user(
             break
         except Exception:
             if attempt < 2:
-                import time
                 time.sleep(0.3 * (attempt + 1))
             continue
 
@@ -387,7 +430,7 @@ def get_current_institution_user(
                 "id": user_id,
                 "full_name": str(full_name).strip(),
                 "email": email or user_data.get("email"),
-                "role": "student",
+                "role": "institution",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -403,8 +446,130 @@ def get_current_institution_user(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not initialize the institution profile.",
             ) from exc
+    elif str(profile.get("role") or "").lower() == "student":
+        try:
+            svc.table("profiles").update({"role": "institution"}).eq("id", user_id).execute()
+            profile["role"] = "institution"
+        except Exception:
+            pass
+
+    resolved_email = profile.get("email") or email
+    with _INSTITUTION_SESSION_LOCK:
+        _INSTITUTION_SESSION_CACHE[token] = (
+            time.time() + _SESSION_CACHE_TTL_SECONDS,
+            user_id,
+            resolved_email,
+        )
 
     return CurrentInstitutionUser(
         user_id=user_id,
-        email=profile.get("email") or email,
+        email=resolved_email,
     )
+
+
+_INDUSTRY_SESSION_LOCK = threading.Lock()
+_INDUSTRY_SESSION_CACHE: dict[str, tuple[float, str, str | None]] = {}
+
+
+def get_current_industry_user(
+    authorization: str | None = Header(default=None),
+) -> CurrentIndustryUser:
+    """FastAPI dependency: validates a Supabase JWT for industry recruiter users."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or malformed Authorization header.",
+        )
+
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Empty bearer token.",
+        )
+
+    now = time.time()
+    with _INDUSTRY_SESSION_LOCK:
+        cached = _INDUSTRY_SESSION_CACHE.get(token)
+        if cached and now < cached[0]:
+            _, user_id, email = cached
+            try:
+                client = get_scoped_client(token)
+                return CurrentIndustryUser(
+                    user_id=user_id,
+                    email=email,
+                    client=client,
+                )
+            except Exception:
+                pass
+
+    settings = get_settings()
+    response = None
+    last_exc = None
+    for attempt in range(3):
+        try:
+            response = _auth_http_client.get(
+                f"{settings.SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "apikey": settings.SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {token}",
+                },
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(0.3 * (attempt + 1))
+
+    if response is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Supabase authentication service is temporarily unreachable.",
+        ) from last_exc
+
+    if response.status_code != 200:
+        with _INDUSTRY_SESSION_LOCK:
+            _INDUSTRY_SESSION_CACHE.pop(token, None)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Supabase session.",
+        )
+
+    try:
+        user_data = response.json()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Supabase returned an invalid authentication response.",
+        ) from exc
+
+    user_id = user_data.get("id")
+    email = user_data.get("email")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Supabase did not return a valid user.",
+        )
+
+    try:
+        client = get_scoped_client(token)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not initialize the database connection.",
+        ) from exc
+
+    with _INDUSTRY_SESSION_LOCK:
+        _INDUSTRY_SESSION_CACHE[token] = (
+            time.time() + _SESSION_CACHE_TTL_SECONDS,
+            user_id,
+            email,
+        )
+
+    return CurrentIndustryUser(
+        user_id=user_id,
+        email=email,
+        client=client,
+    )
+

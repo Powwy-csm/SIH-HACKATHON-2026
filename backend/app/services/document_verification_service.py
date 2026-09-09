@@ -42,6 +42,7 @@ async def process_document_verification(
     service_client,
     student_id: str,
     upload_file: UploadFile,
+    background_tasks = None,
 ) -> DocumentVerificationResponse:
     settings = get_settings()
 
@@ -88,11 +89,18 @@ async def process_document_verification(
             detail="Could not store the supporting document. Please try again.",
         ) from exc
 
-    # 2. Extract text from document
+    # 2. Extract text from document with OCR fallback
     extracted_text = ""
     try:
-        if file_type in ("pdf", "docx"):
-            extracted_text = extract_resume_text(file_type, file_bytes)
+        if file_type == "pdf":
+            extracted_text = extract_resume_text("pdf", file_bytes)
+            if not extracted_text or len(extracted_text.strip()) < 10:
+                # Scanned image PDF: attempt OCR on embedded images
+                ocr_pdf = _extract_pdf_ocr(file_bytes)
+                if ocr_pdf and len(ocr_pdf.strip()) > len(extracted_text):
+                    extracted_text = ocr_pdf
+        elif file_type == "docx":
+            extracted_text = extract_resume_text("docx", file_bytes)
         else:
             extracted_text = _extract_image_text(file_bytes)
     except ResumeTextExtractionError:
@@ -105,15 +113,15 @@ async def process_document_verification(
         logger.warning("Could not extract text from document: %s", exc)
         extracted_text = ""
 
-    if not extracted_text or len(extracted_text.strip()) < 10:
-        # If text couldn't be extracted, use filename as basic context
-        extracted_text = f"Document title: {filename}"
+    # Clean text or build title context
+    clean_extracted = (extracted_text or "").strip()
+    context_text = f"Certificate / Supporting Document: {filename}\nContent:\n{clean_extracted}" if clean_extracted else f"Certificate Title: {filename}"
 
     # 3. Extract skills from document using AI
     doc_skills_raw: list[dict] = []
     try:
         ai_provider = get_ai_provider()
-        doc_skills_raw = ai_provider.extract_skills(extracted_text)
+        doc_skills_raw = ai_provider.extract_skills(context_text)
     except Exception as exc:
         logger.warning("AI extraction from document encountered error: %s", exc)
         doc_skills_raw = []
@@ -124,8 +132,16 @@ async def process_document_verification(
         if isinstance(item, dict) and item.get("skill_name")
     ]
 
+    # If AI extracted 0 skills from a short title, extract title keywords directly
+    if not doc_skill_names and filename:
+        import re
+        words = re.findall(r"[A-Za-z0-9+#.-]+", filename.rsplit(".", 1)[0])
+        stop_words = {"certificate", "cert", "document", "completion", "proof", "course", "verified", "of", "in", "and", "the", "for", "to", "a"}
+        candidate_words = [w for w in words if len(w) > 2 and w.lower() not in stop_words]
+        doc_skill_names.extend(candidate_words)
+
     # 4. Fetch current student skills and canonical skills catalog
-    existing_skills = repo.fetch_student_skills(client, student_id)
+    existing_skills = repo.fetch_student_skills(service_client, student_id)
     existing_skill_map = {
         normalize_text(s["skill_name"]): s for s in existing_skills
     }
@@ -140,6 +156,9 @@ async def process_document_verification(
 
     for raw_name in doc_skill_names:
         norm_name = normalize_text(raw_name)
+        if not norm_name:
+            continue
+
         # Find matching student skill
         matched_existing = existing_skill_map.get(norm_name)
         if not matched_existing:
@@ -153,7 +172,7 @@ async def process_document_verification(
             skill_id = matched_existing["skill_id"]
             skill_name = matched_existing["skill_name"]
             was_verified = bool(matched_existing.get("is_verified"))
-            old_confidence = 0.95 if was_verified else 0.60
+            old_confidence = 0.95 if was_verified else float(matched_existing.get("source_confidence") or 0.60)
 
             # Boost and verify the skill in student_skills
             repo.upsert_verified_student_skill(
@@ -217,21 +236,27 @@ async def process_document_verification(
         is_verified=True,
     )
 
-    # 6. Recompute opportunity matching with fresh verified skills
-    try:
-        opportunity_service.match_opportunities(
-            client=client,
-            service_client=service_client,
-            student_id=student_id,
-            refresh=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not refresh opportunity matches after verification: %s", exc)
+    # 6. Recompute opportunity matching asynchronously
+    def _refresh_opportunities():
+        try:
+            opportunity_service.match_opportunities(
+                client=client,
+                service_client=service_client,
+                student_id=student_id,
+                refresh=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not refresh opportunity matches after verification: %s", exc)
+
+    if background_tasks:
+        background_tasks.add_task(_refresh_opportunities)
+    else:
+        _refresh_opportunities()
 
     msg = (
         f"Verified {len(verified_items)} skill(s) from '{filename}' with confidence boosted to 95%."
         if verified_items
-        else f"Document '{filename}' uploaded successfully. No direct overlapping skills matched existing profile claims."
+        else f"Document '{filename}' uploaded and recorded successfully."
     )
 
     return DocumentVerificationResponse(
@@ -249,7 +274,7 @@ async def process_document_verification(
 
 
 def _extract_image_text(file_bytes: bytes) -> str:
-    """OCR fallback for images using pytesseract and PIL."""
+    """OCR for images using pytesseract and PIL."""
     try:
         import pytesseract
         from PIL import Image
@@ -259,3 +284,28 @@ def _extract_image_text(file_bytes: bytes) -> str:
     except Exception as exc:
         logger.warning("Image OCR not available or failed: %s", exc)
         return ""
+
+
+def _extract_pdf_ocr(file_bytes: bytes) -> str:
+    """Fallback OCR for scanned PDF certificates."""
+    try:
+        from pypdf import PdfReader
+        from PIL import Image
+        import pytesseract
+
+        reader = PdfReader(io.BytesIO(file_bytes))
+        ocr_texts = []
+        for page in reader.pages:
+            for image_file_object in page.images:
+                try:
+                    img = Image.open(io.BytesIO(image_file_object.data))
+                    txt = pytesseract.image_to_string(img)
+                    if txt.strip():
+                        ocr_texts.append(txt.strip())
+                except Exception:
+                    pass
+        return "\n".join(ocr_texts)
+    except Exception as exc:
+        logger.warning("PDF image OCR failed: %s", exc)
+        return ""
+

@@ -1,24 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { fetchInstitutionStudents } from '../../services/institutionService';
+import { fetchInstitutionStudents, fetchInstitutionSkillDemand } from '../../services/institutionService';
 
 export default function InstitutionDashboard() {
     const navigate = useNavigate();
     const { accessToken } = useAuth();
 
-    const [students, setStudents]   = useState([]);
-    const [loading, setLoading]     = useState(true);
-    const [apiError, setApiError]   = useState(null);
+    const [students, setStudents]       = useState([]);
+    const [skillDemand, setSkillDemand] = useState(null);
+    const [loading, setLoading]         = useState(true);
+    const [apiError, setApiError]       = useState(null);
 
-    // ── Fetch real student data from Supabase ─────────────────────────────────
+    // ── Fetch real student & skill-demand data from backend ───────────────────
     const loadDashboardData = useCallback(async () => {
         if (!accessToken) return;
         setLoading(true);
         setApiError(null);
         try {
-            const data = await fetchInstitutionStudents(accessToken);
-            setStudents(data);
+            const [studentsData, demandData] = await Promise.all([
+                fetchInstitutionStudents(accessToken),
+                fetchInstitutionSkillDemand(accessToken).catch(() => null),
+            ]);
+            setStudents(studentsData || []);
+            setSkillDemand(demandData);
         } catch (err) {
             console.error('Institution dashboard data error:', err);
             setApiError(err.message || 'Unable to load real student records.');
@@ -285,45 +290,34 @@ export default function InstitutionDashboard() {
                     <div className="card-body">
                         <div className="demand-summary-list">
 
-                            <div className="demand-sum-item">
-                                <div className="gap-sum-label" style={{ marginBottom: '6px' }}>
-                                    <span>Python &amp; Data Engineering</span>
-                                    <strong>86%</strong>
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="progress-fill bg-success" style={{ width: '86%' }}></div>
-                                </div>
-                            </div>
+                            {loading && (
+                                <p className="text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>
+                                    <i className="ph ph-spinner" style={{ marginRight: 6 }} />
+                                    Analyzing real industry skill demand…
+                                </p>
+                            )}
 
-                            <div className="demand-sum-item">
-                                <div className="gap-sum-label" style={{ marginBottom: '6px' }}>
-                                    <span>Cloud Platforms &amp; DevOps</span>
-                                    <strong>78%</strong>
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="progress-fill bg-blue" style={{ width: '78%' }}></div>
-                                </div>
-                            </div>
-
-                            <div className="demand-sum-item">
-                                <div className="gap-sum-label" style={{ marginBottom: '6px' }}>
-                                    <span>Generative AI &amp; LLM Application</span>
-                                    <strong>74%</strong>
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="progress-fill bg-purple" style={{ width: '74%' }}></div>
-                                </div>
-                            </div>
-
-                            <div className="demand-sum-item">
-                                <div className="gap-sum-label" style={{ marginBottom: '6px' }}>
-                                    <span>Full Stack Web Architecture</span>
-                                    <strong>69%</strong>
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="progress-fill bg-warning" style={{ width: '69%' }}></div>
-                                </div>
-                            </div>
+                            {!loading && skillDemand?.skills && skillDemand.skills.length > 0 ? (
+                                skillDemand.skills.slice(0, 5).map((item, idx) => {
+                                    const colors = ['bg-success', 'bg-blue', 'bg-purple', 'bg-warning', 'bg-danger'];
+                                    const fillClass = colors[idx % colors.length];
+                                    return (
+                                        <div className="demand-sum-item" key={item.skill}>
+                                            <div className="gap-sum-label" style={{ marginBottom: '6px' }}>
+                                                <span>{item.skill}</span>
+                                                <strong>{item.demand_percentage}% Demand ({item.demand_count} Postings)</strong>
+                                            </div>
+                                            <div className="progress-bar">
+                                                <div className={`progress-fill ${fillClass}`} style={{ width: `${Math.min(item.demand_percentage, 100)}%` }}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : !loading && (
+                                <p className="text-muted" style={{ padding: '24px 0', textAlign: 'center' }}>
+                                    No industry skill-demand data available yet.
+                                </p>
+                            )}
 
                         </div>
                     </div>
@@ -353,46 +347,31 @@ export default function InstitutionDashboard() {
 
                 <div className="card-body">
                     <div className="opp-summary-grid">
-
                         <div className="opp-summary-card">
                             <div>
                                 <span className="badge-status bg-success-light text-success" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                    Internship
+                                    Internship &amp; Placement
                                 </span>
-                                <h4>Machine Learning Intern</h4>
-                                <p className="text-muted" style={{ fontSize: '13.5px', marginTop: '4px' }}>ABC Technologies</p>
+                                <h4>Industry Opportunities Stream</h4>
+                                <p className="text-muted" style={{ fontSize: '13.5px', marginTop: '4px' }}>BridgeX Partner Network</p>
                             </div>
                             <span className="match-text text-primary" style={{ marginTop: '12px' }}>
-                                <i className="ph ph-check-circle"></i> {metrics.placementReady} eligible students
+                                <i className="ph ph-check-circle"></i> {metrics.placementReady} placement-ready students
                             </span>
                         </div>
 
                         <div className="opp-summary-card">
                             <div>
                                 <span className="badge-status bg-blue-light text-blue" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                    Live Project
+                                    Skill Alignment
                                 </span>
-                                <h4>AI Research Collaboration</h4>
-                                <p className="text-muted" style={{ fontSize: '13.5px', marginTop: '4px' }}>Industry Research Lab</p>
+                                <h4>{skillDemand?.skills?.[0]?.skill ? `Top Demand: ${skillDemand.skills[0].skill}` : 'Curriculum Alignment'}</h4>
+                                <p className="text-muted" style={{ fontSize: '13.5px', marginTop: '4px' }}>Real-time Market Curve</p>
                             </div>
                             <span className="match-text text-primary" style={{ marginTop: '12px' }}>
-                                <i className="ph ph-users"></i> {metrics.total} students in domain
+                                <i className="ph ph-users"></i> {metrics.total} total enrolled students
                             </span>
                         </div>
-
-                        <div className="opp-summary-card">
-                            <div>
-                                <span className="badge-status bg-purple-light text-purple" style={{ marginBottom: '10px', display: 'inline-block' }}>
-                                    Workshop
-                                </span>
-                                <h4>Cloud Engineering Bootcamp</h4>
-                                <p className="text-muted" style={{ fontSize: '13.5px', marginTop: '4px' }}>TechNova Solutions</p>
-                            </div>
-                            <span className="match-text text-primary" style={{ marginTop: '12px' }}>
-                                <i className="ph ph-sparkle"></i> Open for enrollment
-                            </span>
-                        </div>
-
                     </div>
                 </div>
 

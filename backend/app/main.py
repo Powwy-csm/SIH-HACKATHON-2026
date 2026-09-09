@@ -52,6 +52,8 @@ from app.api.student_profile import router as student_profile_router
 app.include_router(student_profile_router)
 from app.api.institution import router as institution_router
 app.include_router(institution_router)
+from app.api.industry_flow import router as industry_flow_router
+app.include_router(industry_flow_router)
 
 @app.get("/health")
 def health():

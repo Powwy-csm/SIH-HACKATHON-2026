@@ -1,29 +1,23 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   fetchStudentSkills,
   getCachedStudentSkills,
+  calculateClaimConfidence,
 } from '../../utils/studentSkills';
+import {
+  getSavedResumesList,
+  saveResumesList,
+  getSavedDocumentsList,
+  saveDocumentsList,
+} from '../../utils/resumeSkillsStorage';
+import OpportunitySkillGapCard from '../../components/student/OpportunitySkillGapCard';
+
+import { supabase } from '../../lib/supabase';
+import { getAccessToken, clearStaleSession } from '../../services/apiClient';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
-
-function getAccessToken() {
-  const direct = localStorage.getItem('supabase_access_token') || localStorage.getItem('access_token');
-  if (direct) return direct;
-
-  for (const key of Object.keys(localStorage)) {
-    if (!key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-    try {
-      const value = JSON.parse(localStorage.getItem(key));
-      const token = value?.access_token || value?.currentSession?.access_token;
-      if (token) return token;
-    } catch {
-      // Ignore non-json values
-    }
-  }
-  return null;
-}
 
 export default function StudentDashboard() {
   const { user, accessToken: authContextToken, loading: authLoading } = useAuth();
@@ -31,26 +25,52 @@ export default function StudentDashboard() {
   const [status, setStatus] = useState(null);
   const [skills, setSkills] = useState(() => getCachedStudentSkills(user?.id));
   const [matches, setMatches] = useState([]);
-  const [resumes, setResumes] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const [resumes, setResumes] = useState(() => getSavedResumesList(user?.id));
+  const [documents, setDocuments] = useState(() => getSavedDocumentsList(user?.id));
+  const [opportunities, setOpportunities] = useState([]);
   const [dashboardDataLoaded, setDashboardDataLoaded] = useState(false);
+  const lastReqTimeRef = useRef(0);
 
-  const apiFetch = useCallback(async (path, timeoutMs = 3500, options = {}) => {
-    const accessToken = authContextToken || getAccessToken();
+  const apiFetch = useCallback(async (path, timeoutMs = 15000, options = {}) => {
+    let accessToken = authContextToken || (await getAccessToken());
     if (!accessToken) return null;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(`${API_BASE_URL}${path}`, {
+      let response = await fetch(`${API_BASE_URL}${path}`, {
         ...options,
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
+          ...(options.headers || {}),
         },
         signal: controller.signal,
       });
+
+      if (response.status === 401 && supabase) {
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData?.session?.access_token) {
+            accessToken = refreshData.session.access_token;
+            response = await fetch(`${API_BASE_URL}${path}`, {
+              ...options,
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                ...(options.headers || {}),
+              },
+              signal: controller.signal,
+            });
+          } else {
+            await clearStaleSession();
+          }
+        } catch {
+          await clearStaleSession();
+        }
+      }
+
       clearTimeout(timer);
       if (!response.ok) return null;
       return await response.json();
@@ -61,33 +81,45 @@ export default function StudentDashboard() {
   }, [authContextToken]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !user?.id) return;
 
     let mounted = true;
+    const reqId = Date.now();
+    lastReqTimeRef.current = reqId;
+
     const loadDashboardData = async () => {
       try {
-        const [listRes, docsRes, studentSkills] = await Promise.all([
-          apiFetch('/api/resume/list', 3000),
-          apiFetch('/api/resume/documents', 3000),
+        const [listRes, docsRes, studentSkills, oppsRes] = await Promise.all([
+          apiFetch('/api/resume/list', 15000),
+          apiFetch('/api/resume/documents', 15000),
           fetchStudentSkills(user?.id),
+          apiFetch('/api/student/opportunities', 15000),
         ]);
 
-        if (!mounted) return;
+        if (!mounted || reqId !== lastReqTimeRef.current) return;
 
         if (listRes) {
           const rList = Array.isArray(listRes) ? listRes : (listRes.data || []);
           setResumes(rList);
+          saveResumesList(user?.id, rList);
         }
         if (docsRes) {
           const dList = Array.isArray(docsRes) ? docsRes : (docsRes.documents || []);
           setDocuments(dList);
+          saveDocumentsList(user?.id, dList);
         }
 
-        setSkills(studentSkills);
+        setSkills(studentSkills || []);
+
+        if (oppsRes && Array.isArray(oppsRes)) {
+          setOpportunities(oppsRes);
+        }
       } catch (err) {
         console.error('Error loading dashboard data:', err);
       } finally {
-        if (mounted) setDashboardDataLoaded(true);
+        if (mounted && reqId === lastReqTimeRef.current) {
+          setDashboardDataLoaded(true);
+        }
       }
     };
 
@@ -283,12 +315,19 @@ export default function StudentDashboard() {
                 </strong>
               </div>
             </div>
-            <Link className="btn btn-text" to="/student/assessment" style={{ marginTop: 12 }}>
-              View Skill Gaps <i className="ph ph-arrow-right"></i>
+            <Link className="btn btn-text" to="/student/opportunities" style={{ marginTop: 12 }}>
+              Explore Opportunities & Demand <i className="ph ph-arrow-right"></i>
             </Link>
           </>
         )}
       </section>
+
+      {/* Dynamic Live Opportunity Skill Gap */}
+      <OpportunitySkillGapCard
+        postings={opportunities}
+        studentSkills={skills}
+        loading={!dashboardDataLoaded}
+      />
 
       {/* Recommended Opportunities */}
       <section className="spaced-section">
@@ -365,12 +404,8 @@ export default function StudentDashboard() {
           {skills.length > 0 ? (
             <div className="clean-skill-list">
               {skills.slice(0, 8).map(skill => {
-                const isVerified = skill.is_verified || skill.isVerified || skill.status === 'verified';
-                const rawScore = skill.proficiency_score ?? skill.confidence ?? skill.confidence_score ?? skill.extraction_confidence ?? skill.score;
-                const num = Number(rawScore);
-                const score = Number.isFinite(num) && num > 0
-                  ? (num <= 1.0 ? Math.round(num * 100) : Math.min(100, Math.round(num)))
-                  : 70;
+                const score = calculateClaimConfidence(skill);
+                const isVerified = Boolean(skill.is_verified || skill.isVerified || skill.status === 'verified' || score >= 90);
                 return (
                   <div className="skill-row" key={skill.skill_id || skill.skill_name || skill.name}>
                     <div className="skill-info">

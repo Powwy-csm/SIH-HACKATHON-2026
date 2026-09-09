@@ -39,6 +39,12 @@ class ResumeSkillItem(BaseModel):
     skill_name: str | None = None
     name: str | None = None
     confidence: float | None = None
+    claim_confidence: float | None = None
+    proficiency_score: float | None = None
+    self_report_score: float | None = None
+    assessment_score: float | None = None
+    evidence_score: float | None = None
+    source_confidence: float | None = None
     status: str
     is_verified: bool = False
     evidence_url: str | None = None
@@ -127,4 +133,3 @@ class DeleteItemResponse(BaseModel):
     message: str
     deleted_id: str | None = None
     skills_affected: int = 0
-

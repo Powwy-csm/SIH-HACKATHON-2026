@@ -5,8 +5,15 @@ import {
   saveResumeAnalysis,
   clearResumeAnalysis,
   isResumeAnalyzed,
+  getSavedResumesList,
+  saveResumesList,
+  getSavedDocumentsList,
+  saveDocumentsList,
 } from '../../utils/resumeSkillsStorage';
-import { fetchStudentSkills } from '../../utils/studentSkills';
+import { fetchStudentSkills, clearStudentProfileCache, fetchStudentSkillsWithOptions, calculateClaimConfidence } from '../../utils/studentSkills';
+
+import { supabase } from '../../lib/supabase';
+import { getAccessToken, clearStaleSession } from '../../services/apiClient';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 const POLL_INTERVAL_MS = 2500;
@@ -19,24 +26,6 @@ const PROOF_ACCEPTED_TYPES = [
   'image/jpeg',
   'image/jpg',
 ];
-
-function getAccessToken() {
-  const direct = localStorage.getItem('supabase_access_token') || localStorage.getItem('access_token');
-  if (direct) return direct;
-
-  for (const key of Object.keys(localStorage)) {
-    if (!key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-    try {
-      const value = JSON.parse(localStorage.getItem(key));
-      const token = value?.access_token || value?.currentSession?.access_token;
-      if (token) return token;
-    } catch {
-      // Ignore unrelated/malformed localStorage entries.
-    }
-  }
-
-  return null;
-}
 
 function unwrapPayload(payload) {
   if (!payload) return {};
@@ -53,7 +42,7 @@ function normalizeSkills(payload) {
     if (typeof item === 'string') {
       return {
         name: item,
-        confidence: 60,
+        confidence: null,
         category: 'Skill',
         id: `${item}-${index}`,
         isVerified: false,
@@ -71,33 +60,28 @@ function normalizeSkills(payload) {
       item.name ||
       '';
 
+    const confidence = calculateClaimConfidence(item);
     const isVerified = Boolean(
       item.is_verified ||
       item.status === 'verified' ||
       item.source === 'document_verified' ||
-      item.source === 'verified'
+      item.source === 'certificate' ||
+      confidence >= 90
     );
-
-    const confidenceRaw =
-      item.confidence ??
-      item.confidence_score ??
-      item.normalization_confidence ??
-      item.extraction_confidence ??
-      item.score ??
-      (isVerified ? 0.95 : 0.60);
-
-    const num = Number(confidenceRaw);
-    const confidence = isVerified
-      ? Math.max(95, Number.isFinite(num) ? (num <= 1 ? Math.round(num * 100) : Math.round(num)) : 95)
-      : (Number.isFinite(num) ? (num <= 1 ? Math.round(num * 100) : Math.round(num)) : 60);
 
     return {
       name: skillName || 'Unknown skill',
-      confidence: Math.max(0, Math.min(100, confidence)),
+      confidence: confidence,
       category: item.category || item.skill_type || (isVerified ? 'Verified Credential' : item.source === 'ai_estimated' ? 'Resume Claim' : item.source) || 'Skill',
       skillId: item.skill_id || item.skillId || item.id,
       id: item.skill_id || item.id || `${skillName || index}-${index}`,
       isVerified,
+      hasEvidence: Boolean(
+        item.evidence_score > 0 ||
+        item.evidence_url ||
+        item.source_confidence ||
+        isVerified
+      ),
       evidenceUrl: item.evidence_url || null,
       source: item.source || (isVerified ? 'document_verified' : 'ai_estimated'),
     };
@@ -146,6 +130,9 @@ export default function StudentResume() {
   const inputRef = useRef(null);
   const proofInputRef = useRef(null);
   const pollingRef = useRef(null);
+  const lastReqTimeRef = useRef(0);
+  const inFlightRef = useRef(false);
+  const lastFocusFetchRef = useRef(0);
 
   // Resume state - initialized from localStorage if already analyzed
   const [file, setFile] = useState(null);
@@ -183,10 +170,10 @@ export default function StudentResume() {
   const [proofError, setProofError] = useState('');
   const [proofNotice, setProofNotice] = useState('');
   const [proofResult, setProofResult] = useState(null);
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState(() => getSavedDocumentsList(user?.id));
 
   // Uploaded resumes list & deletion state
-  const [resumes, setResumes] = useState([]);
+  const [resumes, setResumes] = useState(() => getSavedResumesList(user?.id));
   const [confirmDeleteResume, setConfirmDeleteResume] = useState(null);
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState(null);
   const [deleteResumeSkills, setDeleteResumeSkills] = useState(true);
@@ -213,6 +200,10 @@ export default function StudentResume() {
           status: saved.status,
         });
       }
+      const savedR = getSavedResumesList(user.id);
+      if (savedR && savedR.length > 0) setResumes(savedR);
+      const savedD = getSavedDocumentsList(user.id);
+      if (savedD && savedD.length > 0) setDocuments(savedD);
     }
   }, [user?.id]);
 
@@ -224,16 +215,19 @@ export default function StudentResume() {
   }, []);
 
   const apiFetch = useCallback(async (path, options = {}) => {
-    const accessToken = authContextToken || getAccessToken();
+    let accessToken = authContextToken || (await getAccessToken());
     if (!accessToken) {
       const authError = new Error('Your BridgeX session is not connected to the API yet. Sign in with the Supabase-backed student account before uploading a resume.');
       authError.code = 'NO_TOKEN';
       throw authError;
     }
 
-    const headers = new Headers(options.headers || {});
-    headers.set('Authorization', `Bearer ${accessToken}`);
-    if (!(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    const buildHeaders = (tok) => {
+      const h = new Headers(options.headers || {});
+      h.set('Authorization', `Bearer ${tok}`);
+      if (!(options.body instanceof FormData)) h.set('Content-Type', 'application/json');
+      return h;
+    };
 
     let controller = null;
     let timer = null;
@@ -241,12 +235,28 @@ export default function StudentResume() {
     if (!signal && !(options.body instanceof FormData)) {
       controller = new AbortController();
       signal = controller.signal;
-      const timeoutMs = options.timeoutMs || 5000;
+      const timeoutMs = options.timeoutMs || 15000;
       timer = setTimeout(() => controller.abort(), timeoutMs);
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal });
+      let response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: buildHeaders(accessToken), signal });
+
+      // Handle 401 session expiration / revocation gracefully
+      if (response.status === 401 && supabase) {
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData?.session?.access_token) {
+            accessToken = refreshData.session.access_token;
+            response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: buildHeaders(accessToken), signal });
+          } else {
+            await clearStaleSession();
+          }
+        } catch {
+          await clearStaleSession();
+        }
+      }
+
       if (timer) clearTimeout(timer);
       let payload = null;
       try { payload = await response.json(); } catch { /* Empty response */ }
@@ -266,10 +276,17 @@ export default function StudentResume() {
 
   const loadIntelligence = useCallback(async (showSpinner = true) => {
     const studentId = user?.id;
+    if (!studentId) return;
+
+    const reqId = Date.now();
+    lastReqTimeRef.current = reqId;
+    inFlightRef.current = true;
+
     const saved = getSavedResumeAnalysis(studentId);
 
-    // If local cache exists, display immediately with zero waiting
-    if (saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
+    // Only use localStorage cache on initial page load (showSpinner=true).
+    // After mutations (showSpinner=false), skip cache to avoid reintroducing deleted data.
+    if (showSpinner && saved && Array.isArray(saved.skills) && saved.skills.length > 0) {
       setSkills(saved.skills);
       setMatches(saved.matches || []);
       if (saved.fileName) {
@@ -281,60 +298,69 @@ export default function StudentResume() {
           processing_status: saved.status || 'completed',
         });
       }
-      if (showSpinner) setLoading(false);
+      setLoading(false);
     } else if (showSpinner) {
       setLoading(true);
     }
 
     try {
-      try {
-        const persistedSkills = await fetchStudentSkills(user?.id);
-        if (persistedSkills.length > 0) {
-          setSkills(persistedSkills);
-        }
-      } catch {
-        // Resume intelligence remains available while persisted skills load.
+      // After mutations, bust profile/skills cache to get fresh DB data
+      const forceRefresh = !showSpinner;
+      if (forceRefresh) {
+        clearStudentProfileCache(studentId);
       }
 
-      // 1. Fetch lightweight status and file metadata from backend
+      // Parallelize all initial metadata and status fetches with reliable timeouts
+      const [skillsResult, latestResult, listResult, docsResult] = await Promise.allSettled([
+        forceRefresh
+          ? fetchStudentSkillsWithOptions({ studentId, forceRefresh: true })
+          : fetchStudentSkills(user?.id),
+        apiFetch('/api/resume/latest'),
+        apiFetch('/api/resume/list'),
+        apiFetch('/api/resume/documents'),
+      ]);
+
+      // If a newer request was dispatched while this was in-flight, discard stale result
+      if (reqId !== lastReqTimeRef.current) {
+        return;
+      }
+
+      if (skillsResult.status === 'fulfilled' && Array.isArray(skillsResult.value)) {
+        setSkills(skillsResult.value);
+      }
+
       let latestData = null;
-      try {
-        const latest = await apiFetch('/api/resume/latest', { timeoutMs: 3000 });
-        latestData = unwrapPayload(latest);
+      if (latestResult.status === 'fulfilled' && latestResult.value) {
+        latestData = unwrapPayload(latestResult.value);
         if (latestData && (latestData.resume_id || latestData.file_name)) {
           setStatus(latestData);
         }
-      } catch {
-        // Status fetch failure does not block UI
       }
 
-      // 2. Fetch uploaded resumes list
       let rList = [];
-      try {
-        const resumesData = await apiFetch('/api/resume/list', { timeoutMs: 3000 });
+      if (listResult.status === 'fulfilled' && listResult.value) {
+        const resumesData = listResult.value;
         rList = Array.isArray(resumesData) ? resumesData : (resumesData?.data || []);
         setResumes(rList);
-      } catch {
-        // Continue gracefully
+        saveResumesList(studentId, rList);
       }
 
-      // 3. Fetch uploaded supporting proof documents
-      try {
-        const docsData = await apiFetch('/api/resume/documents', { timeoutMs: 3000 });
+      if (docsResult.status === 'fulfilled' && docsResult.value) {
+        const docsData = docsResult.value;
         const docs = Array.isArray(docsData) ? docsData : (docsData?.documents || []);
         setDocuments(docs);
-      } catch {
-        // Continue gracefully
+        saveDocumentsList(studentId, docs);
       }
 
       const activeResumeId = latestData?.resume_id || (rList.length > 0 ? (rList[0].resume_id || rList[0].id) : null);
 
-      // 4. Only if local storage is empty and there is an active completed resume, fetch intelligence once
+      // Only if local storage is empty and there is an active completed resume, fetch intelligence once
       const hasSavedSkills = saved && Array.isArray(saved.skills) && saved.skills.length > 0;
       const jobStatus = String(latestData?.processing_status || latestData?.status || '').toLowerCase();
       if (!hasSavedSkills && activeResumeId && (jobStatus.includes('complete') || jobStatus.includes('success'))) {
         try {
-          const intelligence = await apiFetch('/api/resume/intelligence', { timeoutMs: 4500 });
+          const intelligence = await apiFetch('/api/resume/intelligence');
+          if (reqId !== lastReqTimeRef.current) return;
           const normSkills = normalizeSkills(intelligence);
           const normMatches = normalizeMatches(intelligence);
           if (normSkills.length > 0) {
@@ -359,15 +385,46 @@ export default function StudentResume() {
     } catch (err) {
       if (err.code !== 'NO_TOKEN' && err.status !== 404) setError(err.message || 'Unable to load resume intelligence.');
     } finally {
-      if (showSpinner) setLoading(false);
+      if (reqId === lastReqTimeRef.current) {
+        if (showSpinner) setLoading(false);
+        inFlightRef.current = false;
+        lastFocusFetchRef.current = Date.now();
+      }
     }
-  }, [apiFetch, user?.id]);
+  }, [user?.id, apiFetch]);
 
   useEffect(() => {
     if (authLoading) return;
     loadIntelligence(true);
     return clearPolling;
   }, [authLoading, loadIntelligence, clearPolling]);
+
+  // Tab switch & focus listener: throttled refresh (minimum 20s interval, no duplicate storms)
+  useEffect(() => {
+    const handleFocusOrVisibility = () => {
+      const now = Date.now();
+      if (
+        document.visibilityState === 'visible' &&
+        user?.id &&
+        !authLoading &&
+        !inFlightRef.current &&
+        !uploading &&
+        !reanalyzing &&
+        !actionLoading &&
+        !proofUploading &&
+        now - lastFocusFetchRef.current > 20000
+      ) {
+        lastFocusFetchRef.current = now;
+        loadIntelligence(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleFocusOrVisibility);
+    window.addEventListener('focus', handleFocusOrVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleFocusOrVisibility);
+      window.removeEventListener('focus', handleFocusOrVisibility);
+    };
+  }, [user?.id, authLoading, uploading, reanalyzing, actionLoading, proofUploading, loadIntelligence]);
 
   const startPolling = useCallback((uploadedResumeId = null, uploadedFileName = null, uploadedFileSize = 0) => {
     clearPolling();
@@ -423,6 +480,16 @@ export default function StudentResume() {
     setReanalyzing(true);
     setError('');
     setNotice('Initiating explicit AI re-analysis on selected resume...');
+
+    // Clear stale cached analysis so new AI results show cleanly
+    clearResumeAnalysis(user?.id, resumeId);
+    setStatus(prev => ({
+      ...(prev || {}),
+      resume_id: resumeId,
+      status: 'processing',
+      processing_status: 'processing',
+    }));
+
     try {
       await apiFetch('/api/resume/reanalyze', {
         method: 'POST',
@@ -435,7 +502,7 @@ export default function StudentResume() {
     } finally {
       setReanalyzing(false);
     }
-  }, [apiFetch, status, resumes, startPolling]);
+  }, [apiFetch, status, resumes, startPolling, user?.id]);
 
   const validateResumeFile = (candidate) => {
     if (!candidate) return 'Please choose a PDF resume.';
@@ -542,7 +609,84 @@ export default function StudentResume() {
       setProofNotice(data?.message || 'Document successfully analyzed and skills verified!');
       setProofFile(null);
       if (proofInputRef.current) proofInputRef.current.value = '';
-      await loadIntelligence(false);
+
+      // Direct local state update with newly verified skills
+      const verifiedList = Array.isArray(data?.verified_skills) ? data.verified_skills : [];
+      const verifiedNames = new Set(verifiedList.map(v => (v.skill_name || '').toLowerCase()));
+      const verifiedConfidence = new Map(
+        verifiedList.map(v => {
+          const raw = Number(v.new_confidence);
+          return [
+            (v.skill_name || '').toLowerCase(),
+            Number.isFinite(raw) ? Math.round(raw <= 1 ? raw * 100 : raw) : null,
+          ];
+        })
+      );
+
+      let updatedSkills = [];
+      setSkills(prev => {
+        const next = prev.map(s => {
+          if (verifiedNames.has((s.name || s.skill_name || '').toLowerCase())) {
+            return {
+              ...s,
+              isVerified: true,
+              confidence: verifiedConfidence.get((s.name || s.skill_name || '').toLowerCase()) ?? s.confidence,
+              source: 'document_verified',
+              status: 'verified',
+            };
+          }
+          return s;
+        });
+
+        // If any newly verified skill was not in the existing list, append it
+        const existingNames = new Set(next.map(s => (s.name || s.skill_name || '').toLowerCase()));
+        for (const v of verifiedList) {
+          if (!existingNames.has((v.skill_name || '').toLowerCase())) {
+            next.push({
+              id: v.skill_id || `skill-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              name: v.skill_name,
+              proficiency: 'advanced',
+              confidence: verifiedConfidence.get((v.skill_name || '').toLowerCase()),
+              source: 'document_verified',
+              isVerified: true,
+              status: 'verified',
+            });
+          }
+        }
+        updatedSkills = next;
+        return next;
+      });
+
+      // Update documents list immediately
+      if (data?.document_id) {
+        setDocuments(prev => {
+          const updated = [
+            {
+              id: data.document_id,
+              title: data.file_name,
+              file_name: data.file_name,
+              file_type: data.file_type || 'pdf',
+              storage_path: data.storage_path,
+              skills_verified: verifiedList.map(v => v.skill_name),
+              created_at: new Date().toISOString(),
+            },
+            ...prev.filter(d => d.id !== data.document_id),
+          ];
+          saveDocumentsList(user?.id, updated);
+          return updated;
+        });
+      }
+
+      // Persist to local storage analysis cache
+      const currentSaved = getSavedResumeAnalysis(user?.id);
+      if (currentSaved) {
+        saveResumeAnalysis(user?.id, {
+          ...currentSaved,
+          skills: updatedSkills.length > 0 ? updatedSkills : currentSaved.skills,
+        });
+      }
+
+      loadIntelligence(false);
     } catch (err) {
       setProofError(err.message || 'Document verification failed. Please try again.');
       setProofNotice('');
@@ -553,19 +697,32 @@ export default function StudentResume() {
 
   const handleDeleteResume = async () => {
     if (!confirmDeleteResume) return;
+    const target = confirmDeleteResume;
+    setConfirmDeleteResume(null);
     setActionLoading(true);
     setError('');
+
+    // Optimistic UI update: remove from resumes list immediately
+    setResumes(prev => {
+      const updated = prev.filter(r => (r.resume_id || r.id) !== (target.resume_id || target.id));
+      saveResumesList(user?.id, updated);
+      return updated;
+    });
+    clearResumeAnalysis(user?.id, target.resume_id || target.id);
+    if (deleteResumeSkills) {
+      setSkills(prev => prev.filter(s => s.isVerified));
+    }
+    clearStudentProfileCache(user?.id);
+
     try {
-      await apiFetch(`/api/resume/${confirmDeleteResume.resume_id}?delete_skills=${deleteResumeSkills}`, {
+      await apiFetch(`/api/resume/${target.resume_id || target.id}?delete_skills=${deleteResumeSkills}`, {
         method: 'DELETE',
       });
-      // Clear analysis from localStorage
-      clearResumeAnalysis(user?.id, confirmDeleteResume.resume_id);
-      setNotice(`Resume "${confirmDeleteResume.file_name}" removed from Supabase storage and database.`);
-      setConfirmDeleteResume(null);
-      await loadIntelligence(false);
+      setNotice(`Resume "${target.file_name}" removed from Supabase storage and database.`);
+      loadIntelligence(false);
     } catch (err) {
       setError(err.message || 'Failed to remove resume.');
+      loadIntelligence(false);
     } finally {
       setActionLoading(false);
     }
@@ -574,6 +731,12 @@ export default function StudentResume() {
   const handleSelectActiveResume = async (resumeId) => {
     setActionLoading(true);
     setError('');
+    // Optimistic active toggle
+    setResumes(prev => prev.map(r => ({
+      ...r,
+      is_active: (r.resume_id || r.id) === resumeId,
+    })));
+
     try {
       await apiFetch(`/api/resume/select-active/${resumeId}`, { method: 'POST' });
       setNotice('Active resume updated.');
@@ -590,10 +753,11 @@ export default function StudentResume() {
         }));
         saveResumeAnalysis(user?.id, saved);
       } else {
-        await loadIntelligence(false);
+        loadIntelligence(false);
       }
     } catch (err) {
       setError(err.message || 'Failed to update active resume.');
+      loadIntelligence(false);
     } finally {
       setActionLoading(false);
     }
@@ -601,48 +765,64 @@ export default function StudentResume() {
 
   const handleDeleteDocument = async () => {
     if (!confirmDeleteDoc) return;
+    const target = confirmDeleteDoc;
+    setConfirmDeleteDoc(null);
     setActionLoading(true);
     setProofError('');
+
+    // Optimistic UI update: remove document immediately
+    setDocuments(prev => {
+      const updated = prev.filter(d => d.id !== target.id);
+      saveDocumentsList(user?.id, updated);
+      return updated;
+    });
+    clearStudentProfileCache(user?.id);
+
     try {
-      await apiFetch(`/api/resume/documents/${confirmDeleteDoc.id}?delete_skills=${deleteDocSkills}`, {
+      await apiFetch(`/api/resume/documents/${target.id}?delete_skills=${deleteDocSkills}`, {
         method: 'DELETE',
       });
-      setProofNotice(`Certificate "${confirmDeleteDoc.title || confirmDeleteDoc.file_name}" removed from Supabase storage.`);
-      setConfirmDeleteDoc(null);
-      await loadIntelligence(false);
+      setProofNotice(`Certificate "${target.title || target.file_name}" removed from Supabase storage.`);
+      loadIntelligence(false);
     } catch (err) {
       setProofError(err.message || 'Failed to remove certificate.');
+      loadIntelligence(false);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleClearSkills = async () => {
+    setShowClearSkillsModal(false);
     setActionLoading(true);
     setError('');
+    lastReqTimeRef.current = Date.now();
+
+    // Optimistic UI update — clear immediately
+    if (clearScope === 'all') {
+      clearResumeAnalysis(user?.id);
+      setSkills([]);
+      setMatches([]);
+    } else {
+      const verifiedOnly = skills.filter(s => s.isVerified);
+      setSkills(verifiedOnly);
+      // Update localStorage to match optimistic state
+      clearResumeAnalysis(user?.id);
+    }
+    // Bust profile/skills session cache so refetch gets fresh DB data
+    clearStudentProfileCache(user?.id);
+
     try {
       const res = await apiFetch(`/api/resume/skills?scope=${clearScope}`, {
         method: 'DELETE',
       });
       const data = unwrapPayload(res);
       setNotice(data.message || 'Skills removed successfully.');
-      setShowClearSkillsModal(false);
-
-      if (clearScope === 'all') {
-        clearResumeAnalysis(user?.id);
-        setSkills([]);
-      } else {
-        const verifiedOnly = skills.filter(s => s.isVerified);
-        setSkills(verifiedOnly);
-        const currentSaved = getSavedResumeAnalysis(user?.id);
-        if (currentSaved) {
-          saveResumeAnalysis(user?.id, { ...currentSaved, skills: verifiedOnly });
-        }
-      }
-
-      await loadIntelligence(false);
+      // Background refresh with force-refresh to confirm DB state
+      loadIntelligence(false);
     } catch (err) {
       setError(err.message || 'Failed to clear skills.');
+      loadIntelligence(false);
     } finally {
       setActionLoading(false);
     }
@@ -654,22 +834,26 @@ export default function StudentResume() {
     const identifier = isUUID(skill.skillId) ? skill.skillId : (isUUID(skill.id) ? skill.id : skill.name);
     setSkillDeletingId(skill.id);
     setError('');
+    lastReqTimeRef.current = Date.now();
+
+    // Optimistic UI update: remove skill immediately
+    setSkills(prev => {
+      const updated = prev.filter(s => s.id !== skill.id && s.name !== skill.name);
+      return updated;
+    });
+    // Clear all caches so background refresh never reintroduces the deleted skill
+    clearResumeAnalysis(user?.id);
+    clearStudentProfileCache(user?.id);
+
     try {
       await apiFetch(`/api/resume/skills/${encodeURIComponent(identifier)}`, {
         method: 'DELETE',
       });
       setNotice(`Removed "${skill.name}" from your skills profile.`);
-      setSkills(prev => {
-        const updated = prev.filter(s => s.id !== skill.id && s.name !== skill.name);
-        const currentSaved = getSavedResumeAnalysis(user?.id);
-        if (currentSaved) {
-          saveResumeAnalysis(user?.id, { ...currentSaved, skills: updated });
-        }
-        return updated;
-      });
-      await loadIntelligence(false);
+      loadIntelligence(false);
     } catch (err) {
       setError(err.message || `Failed to remove skill "${skill.name}".`);
+      loadIntelligence(false);
     } finally {
       setSkillDeletingId(null);
     }
@@ -1113,7 +1297,7 @@ export default function StudentResume() {
           <div className="callout-icon"><i className="ph-fill ph-shield-check"></i></div>
           <div className="callout-text">
             <h4>Corroborate Skills for 95–100% Trust</h4>
-            <p>Self-reported resume claims start with baseline ~60% confidence. Upload course certificates, credentials, or project reports to elevate your skills to <strong>Verified (95%)</strong> and rank higher in employer matching.</p>
+            <p>Resume claims use the confidence recorded for each skill. Upload course certificates, credentials, or project reports to strengthen the evidence and rank higher in employer matching.</p>
           </div>
         </div>
         <div className="callout-stats">
@@ -1255,7 +1439,9 @@ export default function StudentResume() {
               <div className="proof-pills">
                 {proofResult.verified_skills.map((item, idx) => (
                   <span className="proof-pill-item" key={`new-verified-${idx}`}>
-                    ✓ {item.skill_name} <span style={{ opacity: 0.8, fontSize: 11 }}>(95% confidence)</span>
+                    ✓ {item.skill_name} <span style={{ opacity: 0.8, fontSize: 11 }}>
+                      ({Math.round((item.new_confidence || 0) * 100)}% confidence)
+                    </span>
                   </span>
                 ))}
               </div>
@@ -1431,7 +1617,7 @@ export default function StudentResume() {
           <div>
             <h2>Skills Profile & Corroboration</h2>
             <p className="card-subtitle" style={{ marginBottom: 0 }}>
-              Skills normalized from your resume. Verified skills carry 95%+ confidence backed by proof credentials.
+              Skills normalized from your resume. Verified skills use the confidence recorded for their supporting evidence.
             </p>
           </div>
 
@@ -1481,7 +1667,11 @@ export default function StudentResume() {
                 {skill.isVerified && <i className="ph-fill ph-seal-check"></i>}
                 {skill.name}
                 <span className={`skill-confidence ${skill.isVerified ? 'verified-conf' : ''}`}>
-                  {skill.isVerified ? `✓ ${skill.confidence}%` : `${skill.confidence}% claim`}
+                  {skill.confidence === null
+                    ? 'No evidence'
+                    : skill.isVerified
+                    ? `✓ ${skill.confidence}%`
+                    : `${skill.confidence}% claim`}
                 </span>
                 <button
                   type="button"

@@ -400,3 +400,24 @@ def test_onboarding_config_uses_existing_skill_library_and_missing_student_rows_
         for row in client._db.tables["student_skills"]
     )
 
+
+def test_calculate_claim_confidence_dynamic_rules():
+    from app.services.profile_service import calculate_claim_confidence
+
+    # 1. Certificate / Corroboration / Verified
+    assert calculate_claim_confidence({"is_verified": True}) == 90.0
+    assert calculate_claim_confidence({"source": "certificate"}) == 90.0
+    assert calculate_claim_confidence({"source": "document_verified"}) == 90.0
+    assert calculate_claim_confidence({"evidence_url": "https://example.com/cert.pdf"}) == 90.0
+
+    # 2. Resume extraction
+    assert calculate_claim_confidence({"source": "resume"}) == 55.0
+    assert calculate_claim_confidence({"source": "ai_estimated"}) == 55.0
+    assert calculate_claim_confidence({"source": "resume_intelligence"}) == 55.0
+
+    # 3. Self reported / Initial skills
+    assert calculate_claim_confidence({"source": "self_report", "proficiency": "beginner"}) == 25.0
+    assert calculate_claim_confidence({"source": "self_report", "proficiency": "intermediate"}) == 40.0
+    assert calculate_claim_confidence({"source": "self_report", "proficiency": "advanced"}) == 50.0
+    assert calculate_claim_confidence({"source": "self_report", "proficiency": "expert"}) == 50.0
+

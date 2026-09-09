@@ -113,3 +113,40 @@ export function isResumeAnalyzed(studentId, resumeId, fileName = null) {
   if (fileName && saved.fileName === fileName) return true;
   return Boolean(saved.status === 'completed' && saved.skills.length > 0);
 }
+
+const RESUMES_LIST_PREFIX = 'bridgex_resumes_list';
+const DOCS_LIST_PREFIX = 'bridgex_docs_list';
+
+export function getSavedResumesList(studentId) {
+  if (!studentId && typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(`${RESUMES_LIST_PREFIX}_${studentId || 'default'}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveResumesList(studentId, resumes) {
+  if (!studentId || !Array.isArray(resumes)) return;
+  try {
+    localStorage.setItem(`${RESUMES_LIST_PREFIX}_${studentId || 'default'}`, JSON.stringify(resumes));
+  } catch {}
+}
+
+export function getSavedDocumentsList(studentId) {
+  if (!studentId && typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(`${DOCS_LIST_PREFIX}_${studentId || 'default'}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDocumentsList(studentId, docs) {
+  if (!studentId || !Array.isArray(docs)) return;
+  try {
+    localStorage.setItem(`${DOCS_LIST_PREFIX}_${studentId || 'default'}`, JSON.stringify(docs));
+  } catch {}
+}

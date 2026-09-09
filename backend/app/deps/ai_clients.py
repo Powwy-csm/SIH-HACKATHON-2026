@@ -114,23 +114,18 @@ class GeminiProvider(AIProvider):
             },
         }
 
-        retired_models = {
+        models_to_try = []
+        if self._skill_model:
+            models_to_try.append(self._skill_model)
+        for fallback in [
+            "gemini-2.5-flash",
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-2.5-flash",
-            "gemini-1.5-flash-8b",
-        }
-        fallbacks = [
+            "gemini-2.5-flash-lite",
             "gemini-3.5-flash",
             "gemini-3.1-flash-lite",
-            "gemini-3-flash-preview",
-            "gemini-3.5-flash-lite",
-            "gemini-flash-lite-latest",
-        ]
-        models_to_try = []
-        if self._skill_model and self._skill_model not in retired_models:
-            models_to_try.append(self._skill_model)
-        for fallback in fallbacks:
+            "gemini-flash-latest",
+        ]:
             if fallback not in models_to_try:
                 models_to_try.append(fallback)
 
@@ -139,13 +134,12 @@ class GeminiProvider(AIProvider):
         for model in models_to_try:
             url = f"{self._base_url}/models/{model}:generateContent"
             try:
-                raw_text = self._post(url, payload, timeout=45.0)
+                raw_text = self._post(url, payload, timeout=25.0)
                 self._skill_model = model
                 break
             except AIProviderError as exc:
                 last_exc = exc
                 logger.warning("Skill extraction on model %s failed: %s. Attempting fallback model...", model, exc)
-                time.sleep(0.5)
                 continue
 
         if raw_text is None:

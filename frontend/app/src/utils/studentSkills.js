@@ -14,20 +14,51 @@ function toScore(value) {
   return clamp(number <= 1 ? number * 100 : number);
 }
 
-function fallbackConfidence(skill) {
-  const selfReport = toScore(skill.self_report_score);
-  const assessment = toScore(skill.assessment_score);
-  const evidence = toScore(skill.evidence_score);
+export function calculateClaimConfidence(skill) {
+  if (!skill) return 40;
 
-  if (selfReport === null && assessment === null && evidence === null) {
-    return 0;
+  const isVerified = Boolean(
+    skill.is_verified ||
+    skill.isVerified ||
+    skill.status === 'verified' ||
+    skill.source === 'document_verified' ||
+    skill.source === 'certificate' ||
+    skill.source === 'institution_verified' ||
+    skill.source === 'corroboration' ||
+    (Number(skill.evidence_score || skill.evidenceScore) > 0) ||
+    Boolean(skill.evidence_url || skill.evidenceUrl)
+  );
+
+  if (isVerified) {
+    return 90;
   }
 
-  return clamp(
-    (selfReport || 0) * 0.4 +
-    (assessment || 0) * 0.4 +
-    (evidence || 0) * 0.2
+  const source = (skill.source || '').toLowerCase();
+  const isFromResume = Boolean(
+    skill.is_from_resume ||
+    skill.isFromResume ||
+    source === 'resume' ||
+    source === 'resume_extraction' ||
+    source === 'ai_estimated' ||
+    source === 'extracted' ||
+    source === 'resume_intelligence'
   );
+
+  if (isFromResume) {
+    return 55;
+  }
+
+  // Self-reported / initial skills / default
+  const prof = (skill.proficiency || '').toLowerCase();
+  const profScore = Number(skill.proficiency_score ?? skill.proficiencyScore);
+
+  if (prof === 'beginner' || prof === 'novice' || prof === 'basic' || (Number.isFinite(profScore) && profScore <= 35 && profScore > 0)) {
+    return 25;
+  }
+  if (prof === 'advanced' || prof === 'expert' || (Number.isFinite(profScore) && profScore > 65)) {
+    return 50;
+  }
+  return 40; // intermediate / default
 }
 
 export function normalizeStudentSkills(payload) {
@@ -37,21 +68,25 @@ export function normalizeStudentSkills(payload) {
   const skills = Array.isArray(data?.skills) ? data.skills : [];
 
   return skills.map(skill => {
-    const persistedScore = toScore(skill.proficiency_score);
-    const confidence = persistedScore === null
-      ? fallbackConfidence(skill)
-      : persistedScore;
+    const isVerified = Boolean(
+      skill.is_verified ||
+      skill.isVerified ||
+      skill.status === 'verified' ||
+      skill.source === 'document_verified' ||
+      skill.source === 'certificate'
+    );
+    const confidence = calculateClaimConfidence(skill);
 
     return {
       id: skill.skill_id || skill.id,
       name: skill.skill_name || skill.name || 'Unknown skill',
       proficiency: skill.proficiency || 'beginner',
-      confidence: Math.round(confidence),
+      confidence: confidence,
       selfReportScore: toScore(skill.self_report_score),
       assessmentScore: toScore(skill.assessment_score),
       evidenceScore: toScore(skill.evidence_score),
       source: skill.source || null,
-      isVerified: Boolean(skill.is_verified),
+      isVerified: isVerified || confidence >= 90,
       evidenceUrl: skill.evidence_url || null,
     };
   }).filter(skill => skill.id && skill.name !== 'Unknown skill');

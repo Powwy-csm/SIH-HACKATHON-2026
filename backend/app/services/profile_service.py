@@ -27,36 +27,86 @@ _SOURCE_TRUST_WEIGHTS = {
     "student_added": 0.2,
 }
 
+_CONFIDENCE_WEIGHTS = {
+    "self_report": 0.30,
+    "assessment": 0.35,
+    "evidence": 0.35,
+}
+
+
+def _score(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    if 0 <= score <= 1:
+        score *= 100
+    return max(0.0, min(100.0, score))
+
+
+def calculate_claim_confidence(skill: dict) -> float:
+    """Dynamically calculate claim percentage based on actual source and evidence:
+    - If certificate (corroboration / verified): 90%
+    - If given from resume (extracted / ai_estimated): 55%
+    - If self reported (from initial skills): beginner = 25%, int = 40%, adv = 50%
+    """
+    is_verified = bool(skill.get("is_verified"))
+    source = (str(skill.get("source") or "")).lower()
+    evidence_score = skill.get("evidence_score")
+    evidence_url = skill.get("evidence_url")
+
+    # 1. Certificate / Corroboration / Verified
+    if (
+        is_verified
+        or source in ("certificate", "document_verified", "institution_verified", "corroboration")
+        or (evidence_score is not None and float(evidence_score) > 0)
+        or bool(evidence_url)
+    ):
+        return 90.0
+
+    # 2. Resume extraction
+    if (
+        source in ("resume", "resume_extraction", "ai_estimated", "extracted", "resume_intelligence")
+        or skill.get("is_from_resume")
+    ):
+        return 55.0
+
+    # 3. Self reported / Initial skills
+    prof = (str(skill.get("proficiency") or "")).lower()
+    prof_score = skill.get("proficiency_score")
+    try:
+        prof_score_num = float(prof_score) if prof_score is not None else None
+    except (ValueError, TypeError):
+        prof_score_num = None
+
+    if prof in ("beginner", "novice", "basic") or (prof_score_num is not None and 0 < prof_score_num <= 35):
+        return 25.0
+    elif prof in ("advanced", "expert") or (prof_score_num is not None and prof_score_num > 65):
+        return 50.0
+    else:
+        return 40.0
+
 
 def analyze_profile(client: Client, student_id: str) -> dict:
     t_total = time.time()
 
-    # Parallelize student data fetch and certifications count
-    def _fetch_student_data():
-        t0 = time.time()
-        try:
-            res = repo.fetch_comprehensive_student_data(client, student_id)
-            print(f"[PERF] fetch_comprehensive_student_data: {time.time() - t0:.3f}s")
-            return res
-        except Exception as exc:
-            print(f"[ERROR] fetch_comprehensive_student_data failed: {exc}")
-            return {}
+    t0 = time.time()
+    try:
+        data = repo.fetch_comprehensive_student_data(client, student_id)
+        print(f"[PERF] fetch_comprehensive_student_data: {time.time() - t0:.3f}s")
+    except Exception as exc:
+        print(f"[ERROR] fetch_comprehensive_student_data failed: {exc}")
+        data = {}
 
-    def _fetch_certs():
-        t1 = time.time()
-        try:
-            res = repo.fetch_certifications_count(client, student_id) or 0
-            print(f"[PERF] fetch_certifications_count: {time.time() - t1:.3f}s")
-            return res
-        except Exception as exc:
-            print(f"[ERROR] fetch_certifications_count failed: {exc}")
-            return 0
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        f_data = executor.submit(_fetch_student_data)
-        f_certs = executor.submit(_fetch_certs)
-        data = f_data.result()
-        cert_count = f_certs.result()
+    t1 = time.time()
+    try:
+        cert_count = repo.fetch_certifications_count(client, student_id) or 0
+        print(f"[PERF] fetch_certifications_count: {time.time() - t1:.3f}s")
+    except Exception as exc:
+        print(f"[ERROR] fetch_certifications_count failed: {exc}")
+        cert_count = 0
 
     if not data:
         # Return empty state if student isn't found
@@ -130,6 +180,7 @@ def analyze_profile(client: Client, student_id: str) -> dict:
                 "self_report_score": r.get("self_report_score"),
                 "assessment_score": r.get("assessment_score"),
                 "evidence_score": r.get("evidence_score"),
+                "claim_confidence": calculate_claim_confidence(r),
                 "is_verified": r.get("is_verified"),
                 "source": r.get("source"),
                 "evidence_url": r.get("evidence_url"),

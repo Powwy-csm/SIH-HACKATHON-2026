@@ -71,3 +71,62 @@ export async function fetchStudentPortfolio(studentId, accessToken) {
 
     return await res.json();
 }
+
+/**
+ * Fetch live industry skill demand and gap statistics from real database postings.
+ *
+ * @param {string} accessToken - Supabase session access_token
+ * @returns {Promise<Object>} Object with total_postings, total_students, skills, demandStats, skillMapping
+ */
+export async function fetchInstitutionSkillDemand(accessToken) {
+    const res = await fetch(`${API_BASE}/api/institution/skill-demand`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+            const body = await res.json();
+            detail = body.detail || detail;
+        } catch {
+            // ignore parse error
+        }
+        throw new Error(`Failed to load skill demand: ${detail}`);
+    }
+
+    return await res.json();
+}
+
+/**
+ * Fetch comprehensive skill mapping and deficit analysis from real database postings.
+ *
+ * @param {string} accessToken - Supabase session access_token
+ * @returns {Promise<Object>} Object with demandStats and skillMapping array
+ */
+export async function fetchInstitutionSkillGap(accessToken) {
+    const res = await fetch(`${API_BASE}/api/institution/skill-gap`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+            const body = await res.json();
+            detail = body.detail || detail;
+        } catch {
+            // ignore parse error
+        }
+        throw new Error(`Failed to load skill gap: ${detail}`);
+    }
+
+    return await res.json();
+}
+

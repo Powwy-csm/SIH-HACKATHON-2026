@@ -174,12 +174,8 @@ def list_student_resumes(client, service_client, student_id: str) -> list[dict]:
     import concurrent.futures
     settings = get_settings()
 
-    # Parallelize the two initial DB queries
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        f_rows = executor.submit(repo.fetch_all_resumes_for_student, client, student_id)
-        f_student = executor.submit(repo.fetch_student_row, client, student_id)
-        rows = f_rows.result()
-        student_row = f_student.result()
+    rows = repo.fetch_all_resumes_for_student(service_client, student_id)
+    student_row = repo.fetch_student_row(service_client, student_id)
 
     if not rows:
         return []
@@ -225,9 +221,10 @@ def delete_student_resume(
     student_id: str,
     resume_id: str,
     delete_skills: bool = True,
+    background_tasks = None,
 ) -> dict:
     settings = get_settings()
-    resume_row = repo.fetch_resume_for_student(client, student_id, resume_id)
+    resume_row = repo.fetch_resume_for_student(service_client, student_id, resume_id)
     if not resume_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -241,7 +238,7 @@ def delete_student_resume(
     if storage_path:
         repo.delete_storage_file(service_client, settings.SUPABASE_STORAGE_BUCKET, storage_path)
 
-    # 2. Delete DB record from resume_processing_jobs (and resumes if present)
+    # 2. Delete DB record from resume_processing_jobs
     repo.delete_resume_record(service_client, student_id, resume_id)
 
     # 3. Clean up unverified skills if requested
@@ -251,9 +248,6 @@ def delete_student_resume(
         if not remaining:
             # No resumes remain: wipe out all unverified ai_estimated claims
             skills_affected = repo.delete_unverified_student_skills(service_client, student_id)
-        else:
-            # Another resume exists. Re-analyze or leave remaining intact
-            pass
 
     # 4. Update students.resume_url to the new newest resume, or None if none remain
     if remaining:
@@ -264,17 +258,23 @@ def delete_student_resume(
         except Exception:
             pass
 
-    # 5. Refresh opportunity matching
-    try:
-        from app.services import opportunity_service
-        opportunity_service.match_opportunities(
-            client=client,
-            service_client=service_client,
-            student_id=student_id,
-            refresh=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not refresh opportunity matching after resume deletion: %s", exc)
+    # 5. Refresh opportunity matching asynchronously
+    def _refresh_opportunities():
+        try:
+            from app.services import opportunity_service
+            opportunity_service.match_opportunities(
+                client=client,
+                service_client=service_client,
+                student_id=student_id,
+                refresh=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not refresh opportunity matching after resume deletion: %s", exc)
+
+    if background_tasks:
+        background_tasks.add_task(_refresh_opportunities)
+    else:
+        _refresh_opportunities()
 
     return {
         "success": True,
@@ -290,9 +290,10 @@ def delete_student_document(
     student_id: str,
     cert_id: str,
     delete_skills: bool = True,
+    background_tasks = None,
 ) -> dict:
     settings = get_settings()
-    cert = repo.fetch_certification(client, student_id, cert_id)
+    cert = repo.fetch_certification(service_client, student_id, cert_id)
     if not cert:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -319,17 +320,23 @@ def delete_student_document(
             delete_pure_doc_skills=True,
         )
 
-    # 4. Refresh opportunity matching
-    try:
-        from app.services import opportunity_service
-        opportunity_service.match_opportunities(
-            client=client,
-            service_client=service_client,
-            student_id=student_id,
-            refresh=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not refresh opportunity matching after cert deletion: %s", exc)
+    # 4. Refresh opportunity matching asynchronously
+    def _refresh_opportunities():
+        try:
+            from app.services import opportunity_service
+            opportunity_service.match_opportunities(
+                client=client,
+                service_client=service_client,
+                student_id=student_id,
+                refresh=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not refresh opportunity matching after cert deletion: %s", exc)
+
+    if background_tasks:
+        background_tasks.add_task(_refresh_opportunities)
+    else:
+        _refresh_opportunities()
 
     return {
         "success": True,
@@ -340,7 +347,7 @@ def delete_student_document(
 
 
 def select_active_resume(client, service_client, student_id: str, resume_id: str) -> dict:
-    resume = repo.fetch_resume_for_student(client, student_id, resume_id)
+    resume = repo.fetch_resume_for_student(service_client, student_id, resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found.")
 
@@ -373,6 +380,7 @@ def clear_student_skills_service(
     service_client,
     student_id: str,
     scope: str = "unverified",
+    background_tasks = None,
 ) -> dict:
     """Clear student skills from student_skills in Supabase.
     scope='unverified' (default): removes all unverified AI resume claims, keeping verified credentials.
@@ -385,17 +393,23 @@ def clear_student_skills_service(
         affected = repo.delete_unverified_student_skills(service_client, student_id)
         msg = f"Successfully removed {affected} unverified resume claim skills. Verified credentials were preserved."
 
-    # Refresh opportunity matching
-    try:
-        from app.services import opportunity_service
-        opportunity_service.match_opportunities(
-            client=client,
-            service_client=service_client,
-            student_id=student_id,
-            refresh=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not refresh opportunities after clearing skills: %s", exc)
+    # Refresh opportunity matching asynchronously
+    def _refresh_opportunities():
+        try:
+            from app.services import opportunity_service
+            opportunity_service.match_opportunities(
+                client=client,
+                service_client=service_client,
+                student_id=student_id,
+                refresh=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not refresh opportunities after clearing skills: %s", exc)
+
+    if background_tasks:
+        background_tasks.add_task(_refresh_opportunities)
+    else:
+        _refresh_opportunities()
 
     return {
         "success": True,
@@ -409,6 +423,7 @@ def delete_single_student_skill_service(
     service_client,
     student_id: str,
     skill_identifier: str,
+    background_tasks = None,
 ) -> dict:
     """Delete a single skill from student_skills in Supabase by skill_id UUID or skill name."""
     affected = repo.delete_single_student_skill(service_client, student_id, skill_identifier)
@@ -418,17 +433,23 @@ def delete_single_student_skill_service(
             detail=f"Skill '{skill_identifier}' was not found in your profile or is already removed.",
         )
 
-    # Refresh opportunity matching
-    try:
-        from app.services import opportunity_service
-        opportunity_service.match_opportunities(
-            client=client,
-            service_client=service_client,
-            student_id=student_id,
-            refresh=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not refresh opportunities after deleting single skill: %s", exc)
+    # Refresh opportunity matching asynchronously
+    def _refresh_opportunities():
+        try:
+            from app.services import opportunity_service
+            opportunity_service.match_opportunities(
+                client=client,
+                service_client=service_client,
+                student_id=student_id,
+                refresh=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not refresh opportunities after deleting single skill: %s", exc)
+
+    if background_tasks:
+        background_tasks.add_task(_refresh_opportunities)
+    else:
+        _refresh_opportunities()
 
     return {
         "success": True,
@@ -436,6 +457,7 @@ def delete_single_student_skill_service(
         "skills_affected": affected,
         "deleted_id": skill_identifier,
     }
+
 
 
 

@@ -21,6 +21,7 @@ Important:
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -37,6 +38,7 @@ from app.services import (
 from app.services.skill_extraction_service import SkillExtractionError
 
 logger = logging.getLogger(__name__)
+
 
 
 def _utc_now() -> str:
@@ -84,6 +86,7 @@ def process_resume_intelligence(
     # ---------------------------------------------------------
     # Mark job as processing
     # ---------------------------------------------------------
+    t_pipeline = time.perf_counter()
     try:
         repo.upsert_resume_processing_job(
             service_client,
@@ -108,11 +111,13 @@ def process_resume_intelligence(
         # -----------------------------------------------------
         # 1. Fetch extracted resume text
         # -----------------------------------------------------
+        t_fetch = time.perf_counter()
         resume = repo.fetch_resume_for_student(
-            client,
+            service_client,
             student_id,
             resume_id,
         )
+        logger.info("[PERF] Stage 1 resume fetch: %.3fs", time.perf_counter() - t_fetch)
 
         if not resume:
             raise ValueError(
@@ -142,11 +147,13 @@ def process_resume_intelligence(
         # 3. Gemini skill extraction
         # -----------------------------------------------------
         logger.info(
-            "Starting Gemini skill extraction: student=%s resume=%s",
+            "Starting Gemini skill extraction: student=%s resume=%s text_chars=%d",
             student_id,
             resume_id,
+            len(extracted_text),
         )
 
+        t_extract = time.perf_counter()
         try:
             extracted_items = skill_extraction_service.extract_skills(
                 extracted_text,
@@ -176,9 +183,9 @@ def process_resume_intelligence(
             )
 
         logger.info(
-            "Skill extraction completed: resume=%s skills=%s",
-            resume_id,
+            "[PERF] Stage 3 Gemini skill extraction: skills=%s time=%.3fs",
             len(extracted_items),
+            time.perf_counter() - t_extract,
         )
 
         # -----------------------------------------------------
@@ -190,6 +197,7 @@ def process_resume_intelligence(
             resume_id,
         )
 
+        t_norm = time.perf_counter()
         norm_result = skill_normalization_service.normalize_and_store(
             client=client,
             service_client=service_client,
@@ -214,11 +222,10 @@ def process_resume_intelligence(
             norm_result = {}
 
         logger.info(
-            "Skill normalization completed: "
-            "resume=%s matched=%s unmatched=%s",
-            resume_id,
+            "[PERF] Stage 4 skill normalization+DB writes: matched=%s unmatched=%s time=%.3fs",
             norm_result.get("matched", 0),
             norm_result.get("unmatched", 0),
+            time.perf_counter() - t_norm,
         )
 
         # -----------------------------------------------------
@@ -237,6 +244,7 @@ def process_resume_intelligence(
         #
         # to fail the resume intelligence pipeline.
         #
+        t_embed = time.perf_counter()
         embedding_error = _refresh_profile_embedding(
             client=client,
             service_client=service_client,
@@ -244,6 +252,11 @@ def process_resume_intelligence(
             resume_id=resume_id,
             extracted_text=extracted_text,
             ai_provider=ai_provider,
+        )
+        logger.info(
+            "[PERF] Stage 5 profile embedding: error=%s time=%.3fs",
+            embedding_error or "none",
+            time.perf_counter() - t_embed,
         )
 
         # -----------------------------------------------------
@@ -258,6 +271,7 @@ def process_resume_intelligence(
                 resume_id,
             )
 
+            t_match = time.perf_counter()
             opportunity_service.match_opportunities(
                 client=client,
                 service_client=service_client,
@@ -266,9 +280,8 @@ def process_resume_intelligence(
             )
 
             logger.info(
-                "Internship matching completed: student=%s resume=%s",
-                student_id,
-                resume_id,
+                "[PERF] Stage 6 internship matching: time=%.3fs",
+                time.perf_counter() - t_match,
             )
 
         except Exception as exc:
@@ -323,9 +336,8 @@ def process_resume_intelligence(
             )
 
         logger.info(
-            "Resume intelligence completed: "
-            "student=%s resume=%s extracted=%s matched=%s "
-            "unmatched=%s embedding_error=%s matching_error=%s status=%s",
+            "[PERF] Pipeline TOTAL: student=%s resume=%s extracted=%s matched=%s "
+            "unmatched=%s embedding_error=%s matching_error=%s status=%s total=%.3fs",
             student_id,
             resume_id,
             len(extracted_items),
@@ -334,6 +346,7 @@ def process_resume_intelligence(
             bool(embedding_error),
             bool(matching_error),
             final_status,
+            time.perf_counter() - t_pipeline,
         )
 
     # ---------------------------------------------------------
@@ -387,32 +400,45 @@ def _refresh_profile_embedding(
 
     try:
         # -----------------------------------------------------
-        # Fetch student information needed to build the document
+        # Fetch student information in ONE query (was 5 queries)
         # -----------------------------------------------------
-        student_row = repo.fetch_student_row(
-            client,
-            student_id,
-        ) or {}
+        t_data = time.perf_counter()
+        comprehensive = repo.fetch_comprehensive_student_data(client, student_id)
 
-        # Existing student skills are useful for the profile document.
-        all_matched_skills = repo.fetch_student_skills(
-            client,
-            student_id,
-        )
+        if comprehensive:
+            # Unpack the joined result — keys match the comprehensive query select
+            student_row = comprehensive
+            all_matched_skills = [
+                {
+                    "skill_name": (ss.get("skills") or {}).get("name", ""),
+                    "skill_id": ss.get("skill_id"),
+                    "is_verified": ss.get("is_verified", False),
+                    "proficiency_score": ss.get("proficiency_score"),
+                }
+                for ss in (comprehensive.get("student_skills") or [])
+            ]
+            domain_name = (comprehensive.get("domains") or {}).get("name")
+            # Academic records are not included in fetch_comprehensive_student_data;
+            # fetch separately only when needed (single call, lightweight).
+            academic_record = repo.fetch_academic_records(client, student_id)
+            certification_titles = repo.fetch_certification_titles(client, student_id)
+        else:
+            # Fallback: individual queries (original approach)
+            logger.warning(
+                "fetch_comprehensive_student_data returned empty for %s — "
+                "falling back to individual queries",
+                student_id,
+            )
+            student_row = repo.fetch_student_row(client, student_id) or {}
+            all_matched_skills = repo.fetch_student_skills(client, student_id)
+            domain_name = repo.fetch_domain_name(client, student_row.get("domain_id"))
+            academic_record = repo.fetch_academic_records(client, student_id)
+            certification_titles = repo.fetch_certification_titles(client, student_id)
 
-        domain_name = repo.fetch_domain_name(
-            client,
-            student_row.get("domain_id"),
-        )
-
-        academic_record = repo.fetch_academic_records(
-            client,
+        logger.info(
+            "[PERF] embedding data-fetch: student=%s time=%.3fs",
             student_id,
-        )
-
-        certification_titles = repo.fetch_certification_titles(
-            client,
-            student_id,
+            time.perf_counter() - t_data,
         )
 
         # -----------------------------------------------------
@@ -420,7 +446,7 @@ def _refresh_profile_embedding(
         # -----------------------------------------------------
         profile_document = profile_document_service.build_profile_document(
             domain_name=domain_name,
-            bio=student_row.get("bio"),
+            bio=(student_row.get("bio") if isinstance(student_row, dict) else None),
             matched_skill_names=[
                 skill["skill_name"]
                 for skill in all_matched_skills
@@ -438,11 +464,13 @@ def _refresh_profile_embedding(
         # Generate/store embedding
         # -----------------------------------------------------
         logger.info(
-            "Starting profile embedding: student=%s resume=%s",
+            "Generating profile embedding: student=%s resume=%s doc_chars=%d",
             student_id,
             resume_id,
+            len(profile_document),
         )
 
+        t_ai = time.perf_counter()
         embedding_service.get_or_create_embedding(
             client=client,
             service_client=service_client,
@@ -451,11 +479,10 @@ def _refresh_profile_embedding(
             ai_provider=ai_provider,
             source_version=resume_id,
         )
-
         logger.info(
-            "Profile embedding completed: student=%s resume=%s",
+            "[PERF] embedding AI call: student=%s time=%.3fs",
             student_id,
-            resume_id,
+            time.perf_counter() - t_ai,
         )
 
         return None

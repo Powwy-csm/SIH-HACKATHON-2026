@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { mockData } from '../data/mockData';
 import '../styles/institution.css';
 
 export default function InstitutionLayout() {
@@ -13,11 +12,11 @@ export default function InstitutionLayout() {
     const navClass = ({ isActive }) => (isActive ? 'nav-item active' : 'nav-item');
     const closeSidebar = () => setSidebarOpen(false);
 
-    const deanName = mockData.institution?.deanName || user?.full_name || 'Dr. Priya Menon';
-    const deanRole = mockData.institution?.deanRole || 'Dean • Industry Linkage';
+    const deanName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Institution Lead');
+    const deanRole = 'Academician & Placement Cell';
     const avatarUrl = user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(deanName)}&background=EFF6FF&color=1D4ED8&bold=true`;
-    const institutionName = mockData.institution?.name || 'SSN College of Engineering';
-    const institutionShort = mockData.institution?.shortName || 'SSN';
+    const institutionName = user?.institution_name || 'Partner Institution';
+    const institutionShort = 'Campus';
 
     const getInitials = (name) => {
         if (!name) return 'IN';

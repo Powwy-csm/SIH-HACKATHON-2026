@@ -241,21 +241,34 @@ export default function StudentReadiness() {
 
             {/* ── Real Database Statistics Bar ───────────────────────────────── */}
             {!loading && !apiError && stats.total > 0 && (
-                <div className="card p-16 mb-16" style={{ display: 'flex', gap: '32px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div>
-                        <span className="font-semibold" style={{ fontSize: '22px' }}>{stats.total}</span>
-                        <span className="text-muted" style={{ marginLeft: 6, fontSize: '13px' }}>Enrolled Students</span>
-                    </div>
-                    <div>
-                        <span className="font-semibold" style={{ fontSize: '22px' }}>{stats.assessed}</span>
-                        <span className="text-muted" style={{ marginLeft: 6, fontSize: '13px' }}>Evaluated</span>
-                    </div>
-                    {stats.avgReadiness !== null && (
-                        <div>
-                            <span className="font-semibold" style={{ fontSize: '22px' }}>{stats.avgReadiness}%</span>
-                            <span className="text-muted" style={{ marginLeft: 6, fontSize: '13px' }}>Avg. Readiness</span>
+                <div className="stats-grid grid-3 mb-24">
+                    <div className="stat-card">
+                        <div className="stat-icon bg-blue-light text-blue">
+                            <i className="ph ph-users-three" />
                         </div>
-                    )}
+                        <div className="stat-info">
+                            <span className="stat-value">{stats.total}</span>
+                            <span className="stat-label">Enrolled Students</span>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-icon bg-success-light text-success">
+                            <i className="ph ph-check-circle" />
+                        </div>
+                        <div className="stat-info">
+                            <span className="stat-value">{stats.assessed}</span>
+                            <span className="stat-label">Evaluated</span>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-icon bg-warning-light text-warning">
+                            <i className="ph ph-trend-up" />
+                        </div>
+                        <div className="stat-info">
+                            <span className="stat-value">{stats.avgReadiness !== null ? `${stats.avgReadiness}%` : '0%'}</span>
+                            <span className="stat-label">Avg. Readiness</span>
+                        </div>
+                    </div>
                 </div>
             )}
 

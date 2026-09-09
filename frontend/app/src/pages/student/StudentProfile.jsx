@@ -9,24 +9,9 @@ import {
   normalizeStudentSkills,
 } from '../../utils/studentSkills';
 
+import { getAccessToken, clearStaleSession } from '../../services/apiClient';
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
-
-function getAccessToken() {
-  const direct = localStorage.getItem('supabase_access_token') || localStorage.getItem('access_token');
-  if (direct) return direct;
-
-  for (const key of Object.keys(localStorage)) {
-    if (!key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-    try {
-      const value = JSON.parse(localStorage.getItem(key));
-      const token = value?.access_token || value?.currentSession?.access_token;
-      if (token) return token;
-    } catch {
-      // Ignore non-json values
-    }
-  }
-  return null;
-}
 
 function getSourceBadge(source, isVerified) {
   if (isVerified) {
@@ -59,14 +44,14 @@ export default function StudentProfile() {
   const [configLoading, setConfigLoading] = useState(false);
 
   const apiFetch = useCallback(async (path, timeoutMs = 15000, options = {}) => {
-    const accessToken = authContextToken || getAccessToken();
+    let accessToken = authContextToken || (await getAccessToken());
     if (!accessToken) return null;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(`${API_BASE_URL}${path}`, {
+      let response = await fetch(`${API_BASE_URL}${path}`, {
         ...options,
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -75,10 +60,33 @@ export default function StudentProfile() {
         },
         signal: controller.signal,
       });
+
+      if (response.status === 401 && supabase) {
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshData?.session?.access_token) {
+            accessToken = refreshData.session.access_token;
+            response = await fetch(`${API_BASE_URL}${path}`, {
+              ...options,
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                ...(options.headers || {})
+              },
+              signal: controller.signal,
+            });
+          } else {
+            await clearStaleSession();
+          }
+        } catch {
+          await clearStaleSession();
+        }
+      }
+
       clearTimeout(timer);
       if (!response.ok) return null;
       return await response.json();
-    } catch (err) {
+    } catch {
       clearTimeout(timer);
       return null;
     }

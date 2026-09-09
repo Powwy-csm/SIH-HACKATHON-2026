@@ -46,10 +46,11 @@ def test_importance_weighting_changes_overall_score():
     assert r1.match_score > r2.match_score
 
 
-def test_no_required_skills_returns_zero_with_reason():
+def test_no_required_skills_returns_none_not_fabricated_score():
     result = compute_match({"s1": 80}, [])
-    assert result.match_score == 0.0
-    assert "No required skills" in result.reason
+    assert result.match_score is None
+    assert result.has_requirements is False
+    assert "not listed" in result.reason
 
 
 def test_gap_priority_thresholds():

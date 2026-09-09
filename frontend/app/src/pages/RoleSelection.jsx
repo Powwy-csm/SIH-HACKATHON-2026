@@ -69,7 +69,10 @@ export default function RoleSelection() {
                             <button
                                 key={portal.key}
                                 type="button"
-                                onClick={() => navigate(portal.path)}
+                                onClick={() => {
+                                    localStorage.setItem('bridgex_role_override', portal.key);
+                                    navigate(portal.path);
+                                }}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',

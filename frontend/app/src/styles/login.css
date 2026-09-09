@@ -326,3 +326,155 @@
         display: flex;
     }
 }
+
+/* ── Auth Tabs (Sign In / Create Account Segmented Control) ──────────────── */
+.auth-tabs,
+.login-container .auth-tabs {
+    display: flex;
+    width: 100%;
+    background-color: #F1F5F9;
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    gap: 4px;
+    border: 1px solid #E2E8F0;
+    box-sizing: border-box;
+}
+
+.auth-tab,
+.login-container .auth-tab {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    outline: none;
+    border-radius: 7px;
+    cursor: pointer;
+    color: #64748B;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    text-align: center;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    width: 100%;
+}
+
+.auth-tab:hover,
+.login-container .auth-tab:hover {
+    color: #1E293B;
+    background-color: #E2E8F0;
+}
+
+.auth-tab.active,
+.login-container .auth-tab.active {
+    background-color: #FFFFFF;
+    color: #2563EB;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    font-weight: 700;
+}
+
+.auth-tab:focus-visible,
+.login-container .auth-tab:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+}
+
+/* ── Success message ─────────────────────────────────────────────────────── */
+.success-message {
+    background-color: #F0FDF4;
+    color: #15803D;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+/* ── Forgot password as a button ─────────────────────────────────────────── */
+.button-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* ── Back to Sign In link ─────────────────────────────────────────────────── */
+.back-auth-link {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 12px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-blue);
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.back-auth-link:hover { text-decoration: underline; }
+
+/* ── Auth note (below Create Account form) ───────────────────────────────── */
+.auth-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.5;
+}
+
+/* ── Google OAuth button ─────────────────────────────────────────────────── */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.btn-google {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    margin-bottom: 8px;
+}
+
+.btn-google:hover:not(:disabled) {
+    border-color: #94A3B8;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.btn-google:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

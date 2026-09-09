@@ -37,11 +37,12 @@ class SkillDetail:
 
 @dataclass
 class MatchResult:
-    match_score: float                         # 0-100 weighted overall score
+    match_score: float | None                  # 0-100 weighted score, or None when nothing to compare
     matched_skills: list[dict] = field(default_factory=list)
     missing_skills: list[dict] = field(default_factory=list)
     breakdown: list[SkillDetail] = field(default_factory=list)
     reason: str = ""
+    has_requirements: bool = True               # False = posting lists no required skills at all
 
 
 def compute_match(
@@ -56,12 +57,24 @@ def compute_match(
     per-skill breakdown so callers can render "matched vs missing" and
     reuse the same numbers for gap analysis / simulation without
     recomputing anything differently.
+
+    When a posting lists no required skills, there is nothing to score
+    against — match_score is None (not a fabricated number) and
+    has_requirements is False, so the frontend can show "Requirements
+    not specified" instead of a misleading percentage.
     """
     settings = get_settings()
     weights = settings.IMPORTANCE_WEIGHTS
 
     if not required_skills:
-        return MatchResult(match_score=0.0, reason="No required skills defined for this posting.")
+        return MatchResult(
+            match_score=None,
+            matched_skills=[],
+            missing_skills=[],
+            breakdown=[],
+            reason="This posting has not listed specific skill requirements yet.",
+            has_requirements=False,
+        )
 
     breakdown: list[SkillDetail] = []
     weighted_sum = 0.0

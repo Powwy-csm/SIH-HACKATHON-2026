@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { mockData } from '../../data/mockData';
 
 import InstitutionDashboard from './InstitutionDashboard';
 import StudentReadiness from './StudentReadiness';
@@ -11,7 +10,7 @@ import {
     Placements,
 } from './ComingSoonViews';
 import InstitutionProfile from './InstitutionProfile';
-import PortfolioModal from './PortfolioModal';
+import PortfolioModal from '../../components/modals/PortfolioModal';
 
 // Maps each sidebar nav key to its title (topbar) and component.
 // This replaces navigateToView()'s manual DOM show/hide + title swap.

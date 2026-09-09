@@ -55,6 +55,23 @@ function getDefaultPathForRole(role) {
   return '/student/dashboard';
 }
 
+function isRoleAllowed(currentRole, requiredRole) {
+  if (!requiredRole) return true;
+  const curr = String(currentRole || '').toLowerCase();
+  const req = String(requiredRole || '').toLowerCase();
+
+  if (req === 'student') {
+    return curr.includes('student') || curr === '' || curr === 'authenticated';
+  }
+  if (req === 'institution') {
+    return curr.includes('institution') || curr.includes('faculty') || curr.includes('academic');
+  }
+  if (req === 'industry') {
+    return curr.includes('industry') || curr.includes('company') || curr.includes('employer') || curr.includes('recruiter');
+  }
+  return curr.includes(req);
+}
+
 function ProtectedRoute({ children, role, allowIncompleteOnboarding = false }) {
   const { user, loading } = useAuth();
 
@@ -62,7 +79,7 @@ function ProtectedRoute({ children, role, allowIncompleteOnboarding = false }) {
   if (!user) return <Navigate to="/login" replace />;
 
   const currentRole = String(user.role || 'student').toLowerCase();
-  if (role && !currentRole.includes(role)) {
+  if (role && !isRoleAllowed(currentRole, role)) {
     return <Navigate to={getDefaultPathForRole(currentRole)} replace />;
   }
 

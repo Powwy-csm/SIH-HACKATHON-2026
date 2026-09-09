@@ -24,8 +24,12 @@ skill_normalization_service.SEMANTIC_MATCHING_IMPLEMENTED.
 """
 from __future__ import annotations
 
+import logging
 import re
+import time
 from dataclasses import dataclass
+
+_log = logging.getLogger(__name__)
 
 from rapidfuzz import fuzz, process
 
@@ -129,6 +133,7 @@ def normalize_and_store(
             "matched_skill_names": list[str],  # for the profile document
         }
     """
+    t0 = time.perf_counter()
     canonical_skills = repo.fetch_all_skills(client)
     try:
         alias_map = {
@@ -140,6 +145,7 @@ def normalize_and_store(
         # against the canonical skills table remains fully functional.
         alias_map = {}
     by_normalized_name = {normalize_text(s["name"]): s for s in canonical_skills}
+    _log.info("[PERF] normalize: catalog+alias fetch %.3fs (%d skills)", time.perf_counter() - t0, len(canonical_skills))
 
     matched_count = 0
     unmatched_count = 0
@@ -150,6 +156,16 @@ def normalize_and_store(
     # do not linger when a new resume is analyzed. Verified skills are preserved.
     repo.delete_unverified_student_skills(service_client, student_id)
 
+    # --- PRE-FETCH all existing student skills ONCE (eliminates N+1) ---
+    # Previously: repo.fetch_student_skill() was called inside the loop
+    # per matched skill → N sequential DB queries.
+    # Now: one query, O(1) dict lookup per item.
+    t_prefetch = time.perf_counter()
+    existing_skills_list = repo.fetch_student_skills(client, student_id)
+    existing_skill_map: dict[str, dict] = {row["skill_id"]: row for row in existing_skills_list}
+    _log.info("[PERF] normalize: student skills pre-fetch %.3fs (%d rows)", time.perf_counter() - t_prefetch, len(existing_skill_map))
+
+    t_norm = time.perf_counter()
     for item in extracted_items:
         result = _normalize_one(item.skill_name, canonical_skills, by_normalized_name, alias_map, fuzzy_threshold)
 
@@ -161,7 +177,8 @@ def normalize_and_store(
             matched_count += 1
             matched_skill_names.append(result.matched_skill_name or item.skill_name)
 
-            existing = repo.fetch_student_skill(client, student_id, result.skill_id)
+            # O(1) dict lookup — no DB round-trip inside the loop
+            existing = existing_skill_map.get(result.skill_id)
             if existing and existing.get("is_verified"):
                 note = "Skill already verified by the student — left unchanged."
             else:
@@ -173,6 +190,7 @@ def normalize_and_store(
                     skill_id=result.skill_id,
                     proficiency_score=final_score,
                     proficiency_label=ai_default_proficiency_label,
+                    source_confidence=item.confidence,
                 )
         else:
             unmatched_count += 1
@@ -207,6 +225,11 @@ def normalize_and_store(
                 note=note,
             )
         )
+
+    _log.info(
+        "[PERF] normalize: loop+upserts %.3fs (matched=%d unmatched=%d)",
+        time.perf_counter() - t_norm, matched_count, unmatched_count,
+    )
 
     return {
         "matched": matched_count,

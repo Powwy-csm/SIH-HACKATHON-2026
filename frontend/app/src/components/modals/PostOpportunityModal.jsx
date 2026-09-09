@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../services/apiClient';
 
 const PERK_OPTIONS = [
     { id: 'ppo', label: 'Pre-Placement Offer', icon: 'ph ph-certificate' },
@@ -11,7 +13,16 @@ const PERK_OPTIONS = [
     { id: 'fast_track', label: 'Fast-Track Full-Time Conversion', icon: 'ph ph-trend-up' },
 ];
 
-export default function PostOpportunityModal({ onClose, onPublish }) {
+const OPP_TYPES = [
+    { value: 'internship',    label: 'Internship',    icon: 'ph ph-student' },
+    { value: 'placement',     label: 'Full-time Job', icon: 'ph ph-briefcase' },
+    { value: 'apprenticeship',label: 'Apprenticeship',icon: 'ph ph-graduation-cap' },
+    { value: 'training',      label: 'Training',      icon: 'ph ph-chalkboard-teacher' },
+    { value: 'bootcamp',      label: 'Bootcamp',      icon: 'ph ph-lightning' },
+];
+
+export default function PostOpportunityModal({ onClose, onPublish, companyId }) {
+    const { user } = useAuth();
     const [oppType, setOppType] = useState('internship');
     const [title, setTitle] = useState('');
     const [department, setDepartment] = useState('');
@@ -19,7 +30,7 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
     const [description, setDescription] = useState('');
     
     // Skills
-    const [skills, setSkills] = useState(['Python', 'Machine Learning', 'SQL']);
+    const [skills, setSkills] = useState([]);
     const [skillInput, setSkillInput] = useState('');
     
     // Requirements
@@ -39,6 +50,8 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
     // Perks selection
     const [selectedPerks, setSelectedPerks] = useState(['ppo', 'certificate']);
     const [notification, setNotification] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     const handleAddSkill = (e) => {
         if (e.key === 'Enter') {
@@ -64,44 +77,67 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
         );
     };
 
-    const handleSaveDraft = () => {
-        setNotification('Opportunity saved as draft successfully!');
-        setTimeout(() => {
-            setNotification('');
-            onClose();
-        }, 1200);
+    const modeMap = { 'On-site': 'on-site', 'Remote': 'remote', 'Hybrid': 'hybrid' };
+
+    const handleSaveDraft = async () => {
+        await saveToDb('closed');
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         if (e) e.preventDefault();
-        const payload = {
-            oppType,
-            title: title || 'New Opportunity',
-            department,
-            openings,
-            description,
-            skills,
-            qualification,
-            experience,
-            cgpa,
-            targetDept,
-            location,
-            workMode,
-            duration,
-            stipend,
-            deadline,
-            startDate,
-            perks: selectedPerks,
-        };
+        await saveToDb('open');
+    };
 
-        if (onPublish) {
-            onPublish(payload);
+    const saveToDb = async (status) => {
+        if (!title.trim()) {
+            setError('Please enter a title.');
+            return;
         }
-        setNotification('Opportunity published to BridgeX partner campus matching engine!');
-        setTimeout(() => {
-            setNotification('');
-            onClose();
-        }, 1200);
+        setSaving(true);
+        setError('');
+
+        try {
+            const payload = {
+                title: title.trim(),
+                department: department || null,
+                type: oppType,
+                status,
+                description: description || null,
+                location: location || null,
+                mode: modeMap[workMode] || 'on-site',
+                duration_months: duration ? parseFloat(duration) : null,
+                stipend_text: stipend || null,
+                eligibility_criteria: [
+                    qualification,
+                    experience,
+                    cgpa ? `Min CGPA: ${cgpa}` : null,
+                    `Target: ${targetDept}`,
+                ].filter(Boolean).join(' | ') || null,
+                openings: openings ? parseInt(openings, 10) : 1,
+                application_deadline: deadline || null,
+                skills_list: skills,
+            };
+
+            const data = await apiFetch('/api/industry/opportunities', {
+                method: 'POST',
+                body: payload,
+            });
+
+            setNotification(
+                status === 'open'
+                    ? 'Opportunity published! Students can now see and apply.'
+                    : 'Draft saved successfully!'
+            );
+            setTimeout(() => {
+                if (onPublish) onPublish(data);
+                if (onClose) onClose();
+            }, 600);
+        } catch (err) {
+            console.error('saveToDb error:', err);
+            setError(err.message || 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -111,7 +147,7 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
                     <div>
                         <h2>Post New Opportunity</h2>
                         <p className="subtitle" style={{ marginTop: '4px', fontSize: '13px' }}>
-                            Fill in the details below to publish a new role, internship, or challenge to BridgeX partner campuses.
+                            Fill in the details below to publish a new role, internship, training, or bootcamp to BridgeX partner campuses.
                         </p>
                     </div>
                     <button className="icon-btn close-modal" onClick={onClose} type="button">
@@ -137,6 +173,23 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
                             {notification}
                         </div>
                     )}
+                    {error && (
+                        <div style={{
+                            padding: '12px 16px',
+                            marginBottom: '16px',
+                            background: '#FEE2E2',
+                            color: '#DC2626',
+                            borderRadius: '8px',
+                            fontWeight: 600,
+                            fontSize: '13.5px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <i className="ph ph-warning-circle"></i>
+                            {error}
+                        </div>
+                    )}
 
                     <form id="postOpportunityForm" onSubmit={handleSubmit}>
                         <div className="form-grid">
@@ -144,71 +197,21 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
                             <div className="form-group span-2">
                                 <label>Opportunity Type</label>
                                 <div className="radio-group">
-                                    <label className="radio-card">
-                                        <input
-                                            type="radio"
-                                            name="opp_type"
-                                            value="internship"
-                                            checked={oppType === 'internship'}
-                                            onChange={() => setOppType('internship')}
-                                        />
-                                        <span className="radio-content">
-                                            <i className="ph ph-student"></i>
-                                            Internship
-                                        </span>
-                                    </label>
-                                    <label className="radio-card">
-                                        <input
-                                            type="radio"
-                                            name="opp_type"
-                                            value="fulltime"
-                                            checked={oppType === 'fulltime'}
-                                            onChange={() => setOppType('fulltime')}
-                                        />
-                                        <span className="radio-content">
-                                            <i className="ph ph-briefcase"></i>
-                                            Full-time Job
-                                        </span>
-                                    </label>
-                                    <label className="radio-card">
-                                        <input
-                                            type="radio"
-                                            name="opp_type"
-                                            value="apprenticeship"
-                                            checked={oppType === 'apprenticeship'}
-                                            onChange={() => setOppType('apprenticeship')}
-                                        />
-                                        <span className="radio-content">
-                                            <i className="ph ph-graduation-cap"></i>
-                                            Apprenticeship
-                                        </span>
-                                    </label>
-                                    <label className="radio-card">
-                                        <input
-                                            type="radio"
-                                            name="opp_type"
-                                            value="project"
-                                            checked={oppType === 'project'}
-                                            onChange={() => setOppType('project')}
-                                        />
-                                        <span className="radio-content">
-                                            <i className="ph ph-git-branch"></i>
-                                            Live Project
-                                        </span>
-                                    </label>
-                                    <label className="radio-card">
-                                        <input
-                                            type="radio"
-                                            name="opp_type"
-                                            value="research"
-                                            checked={oppType === 'research'}
-                                            onChange={() => setOppType('research')}
-                                        />
-                                        <span className="radio-content">
-                                            <i className="ph ph-flask"></i>
-                                            Research
-                                        </span>
-                                    </label>
+                                    {OPP_TYPES.map(({ value, label, icon }) => (
+                                        <label className="radio-card" key={value}>
+                                            <input
+                                                type="radio"
+                                                name="opp_type"
+                                                value={value}
+                                                checked={oppType === value}
+                                                onChange={() => setOppType(value)}
+                                            />
+                                            <span className="radio-content">
+                                                <i className={icon}></i>
+                                                {label}
+                                            </span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
 
@@ -310,6 +313,7 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
                                     <option>B.Sc / M.Sc</option>
                                     <option>MBA / Management</option>
                                     <option>Any Degree</option>
+                                    <option>No Degree Required</option>
                                 </select>
                             </div>
 
@@ -463,14 +467,18 @@ export default function PostOpportunityModal({ onClose, onPublish }) {
                 </div>
 
                 <div className="modal-footer">
-                    <button type="button" className="btn btn-outline close-modal" onClick={onClose}>
+                    <button type="button" className="btn btn-outline close-modal" onClick={onClose} disabled={saving}>
                         Cancel
                     </button>
-                    <button type="button" className="btn btn-outline" onClick={handleSaveDraft}>
+                    <button type="button" className="btn btn-outline" onClick={handleSaveDraft} disabled={saving}>
                         <i className="ph ph-floppy-disk"></i> Save Draft
                     </button>
-                    <button type="button" className="btn btn-primary" onClick={handleSubmit}>
-                        <i className="ph ph-paper-plane-tilt"></i> Publish Opportunity
+                    <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
+                        {saving ? (
+                            <><i className="ph ph-circle-notch" style={{ animation: 'spin 1s linear infinite' }}></i> Saving...</>
+                        ) : (
+                            <><i className="ph ph-paper-plane-tilt"></i> Publish Opportunity</>
+                        )}
                     </button>
                 </div>
             </div>

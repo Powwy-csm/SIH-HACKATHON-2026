@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
+import time
+
 from supabase import Client
 
 from app.services import repository as repo
 from app.services.matching_engine import compute_match
+
+logger = logging.getLogger(__name__)
 
 
 def match_opportunities(
@@ -25,16 +30,29 @@ def match_opportunities(
         if cached:
             return [_row_to_item(r) for r in cached]
 
+    t0 = time.perf_counter()
+
     skill_rows = repo.fetch_student_skills(client, student_id)
     levels = repo.student_skill_levels(skill_rows)
 
     postings = repo.fetch_open_postings(client, domain_id=domain_id, posting_type=posting_type)
 
+    if not postings:
+        return []
+
+    # --- BULK FETCH: one query for all postings instead of N queries ---
+    posting_ids = [p["id"] for p in postings]
+    t_bulk = time.perf_counter()
+    all_required_skills = repo.fetch_all_posting_required_skills_bulk(client, posting_ids)
+    logger.info(
+        "[PERF] opportunity bulk required-skills fetch: %d postings in %.3fs",
+        len(posting_ids),
+        time.perf_counter() - t_bulk,
+    )
+
     results = []
     for posting in postings:
-        required = repo.fetch_posting_required_skills(client, posting["id"])
-        if not required:
-            continue
+        required = all_required_skills.get(posting["id"], [])
         match = compute_match(levels, required)
         upsert_recommendation_safe(service_client, student_id, posting["id"], match)
         company_name = (posting.get("companies") or {}).get("name", "Unknown")
@@ -48,8 +66,15 @@ def match_opportunities(
             "reason": match.reason,
         })
 
-    results.sort(key=lambda r: r["match_score"], reverse=True)
+    results.sort(key=lambda r: (r["match_score"] if r["match_score"] is not None else -1.0), reverse=True)
+    logger.info(
+        "[PERF] opportunity matching total: %d postings → %d matches in %.3fs",
+        len(postings),
+        len(results),
+        time.perf_counter() - t0,
+    )
     return results
+
 
 
 def upsert_recommendation_safe(service_client: Client, student_id: str, posting_id: str, match) -> None:

@@ -77,15 +77,9 @@ export function AuthProvider({ children }) {
                 baseUser.role = profileRole;
             }
 
-            // Check for a persisted role override (set during portal-specific login).
-            // This handles page refresh: the profiles table may still have 'student'
-            // for an industry user, so we use the override until the DB is fixed.
             const roleOverride = localStorage.getItem('bridgex_role_override');
-            if (roleOverride && roleOverride !== 'student') {
-                const currentRole = String(baseUser.role || '').toLowerCase();
-                if (currentRole === 'student' || currentRole === '') {
-                    baseUser.role = roleOverride;
-                }
+            if (roleOverride) {
+                baseUser.role = roleOverride;
             }
 
             const role = String(baseUser.role || '').toLowerCase();
@@ -241,17 +235,18 @@ export function AuthProvider({ children }) {
         // If the user logged in via a portal-specific URL (e.g. /login/industry),
         // and the profiles table still has 'student' (a known data issue from
         // the original trigger hardcoding role='student'), use the intended role.
-        if (intendedRole && intendedRole !== 'student') {
-            const profileRole = String(mapped.role || '').toLowerCase();
-            if (profileRole === 'student' || profileRole === '' || profileRole === 'authenticated') {
-                mapped.role = intendedRole;
-                // Persist the override so page refreshes don't reset the role
-                localStorage.setItem('bridgex_role_override', intendedRole);
-                try {
-                    await supabase.from('profiles').update({ role: intendedRole }).eq('id', result.data.user.id);
-                } catch {
-                    // ignore if RLS blocks profile role update
-                }
+        if (intendedRole) {
+            mapped.role = intendedRole;
+            localStorage.setItem('bridgex_role_override', intendedRole);
+            try {
+                await supabase.from('profiles').update({ role: intendedRole }).eq('id', result.data.user.id);
+            } catch {
+                // ignore if RLS blocks profile role update
+            }
+            try {
+                await supabase.auth.updateUser({ data: { role: intendedRole } });
+            } catch {
+                // ignore if auth update fails
             }
         }
 
@@ -327,6 +322,25 @@ export function AuthProvider({ children }) {
         return result;
     };
 
+    const loginWithGoogle = async () => {
+        if (!supabase) {
+            const error = new Error(supabaseConfigError || 'Supabase not configured.');
+            setAuthError(error.message);
+            return { error };
+        }
+        setAuthError('');
+        const result = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        });
+        if (result.error) {
+            setAuthError(result.error.message);
+        }
+        return result;
+    };
+
     const logout = async () => {
         if (!supabase) return;
         const { error } = await supabase.auth.signOut();
@@ -348,6 +362,7 @@ export function AuthProvider({ children }) {
         login,
         signup,
         resetPassword,
+        loginWithGoogle,
         logout,
         refreshUser,
     }), [user, session, loading, authError]);
